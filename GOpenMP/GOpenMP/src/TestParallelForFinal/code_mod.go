@@ -37,7 +37,7 @@ func main() {
 	var _barrier = make(chan bool)
 	for _i := 0; _i < 8; _i++ { // Hilos.
 		go func(_routine_num int) {
-			for _j := _routine_num; _j < 10; _j += 8 { // Iteraciones. Hilos.
+			for _j := _routine_num; _j < 10; _j += 8 { // Iteraciones + Hilos.
 				cont++
 				fmt.Println("Gouroutine:", _routine_num, " cont =", cont)
 			}

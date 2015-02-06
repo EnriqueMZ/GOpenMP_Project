@@ -293,7 +293,7 @@ func main() {
 					}
 					continue
 				case 1: // PRAGMA PRIVATE_FOR
-					panic("Error: Pragma Parallel_For aun en proceso...")
+					panic("Error: Pragma Parallel_For en proceso...")
 				case 3: // PRAGMA THREADPRIVATE
 					passToken(tok, out, sync)
 					continue
