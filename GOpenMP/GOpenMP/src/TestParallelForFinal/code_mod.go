@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	//. "gomp_lib"
-	"runtime" // Añadido
+	"runtime" // Incluido
 )
 
 func main() {
