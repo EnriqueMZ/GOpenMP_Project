@@ -1,4 +1,4 @@
 GOpenMP
 =======
 
-A set of libraries and tools that's implements OpenMP directives for Go! programming language.
+A set of libraries and tools, that's implements OpenMP directives for Go! programming language.
