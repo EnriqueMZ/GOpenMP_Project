@@ -45,7 +45,7 @@ func main() {
 			_barrier <- true
 		}(_i)
 	}
-	for _i := 0; _i < 8; _i++ { // Hilos
+	for _i := 0; _i < _numCPUs; _i++ { // Hilos
 		<-_barrier
 	}
 

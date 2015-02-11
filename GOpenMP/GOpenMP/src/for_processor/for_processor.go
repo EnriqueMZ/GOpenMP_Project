@@ -1,7 +1,6 @@
 package for_processor
 
 import (
-	"fmt"
 	"go/token"
 	. "goprep"
 	"strconv"
@@ -39,8 +38,9 @@ func logic_operator(tok Token) (bool, int) {
 }
 
 // Funcion que trata la declaracion de un interface.
-func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}) (int, Token) {
-	var num_iter, ini, fin, inc, steps int
+func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}) (string, Token) {
+	var num_iter string
+	var ini, fin, inc, steps int
 	var variable, aux string
 	var err bool
 	if tok.Token != token.FOR {
@@ -104,7 +104,8 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 	if aux != variable {
 		panic("Error: Debe emplear la misma variable en la declaracion del for")
 	}
-	passToken(tok, out, sync)
+	out <- "_i"
+	sync <- nil
 	tok = <-in
 	switch tok.Token {
 	case token.INC, token.DEC:
@@ -114,12 +115,10 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 		sync <- nil
 		tok = <-in
 	case token.ADD_ASSIGN, token.SUB_ASSIGN:
-		// Reescribe el bucle
-		fmt.Println("Token actual:", tok.Str)
+		// Reescribe el bucle	
 		out <- "++"
 		sync <- nil
 		tok = <-in
-		fmt.Println("Token actual:", tok.Str)
 		if tok.Token != token.INT {
 			panic("Error: Debe definirse como un entero")
 		}
@@ -127,9 +126,8 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 		// Reescribe el bucle
 		eliminateToken(out, sync)
 		tok = <-in
-		fmt.Println("Token actual:", tok.Str)
 	}
-	num_iter = ((fin + inc) - ini) / steps
+	num_iter = strconv.Itoa(((fin + inc) - ini) / steps)
 	return num_iter, tok
 	// 	WARNING!!! PARADO HASTA TERMINAR EL PROCESADOR DE IMPORTS
 }

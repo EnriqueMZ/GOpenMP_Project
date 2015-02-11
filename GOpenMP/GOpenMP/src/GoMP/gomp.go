@@ -317,16 +317,65 @@ func main() {
 					}
 					continue
 				case 1: // PRAGMA PARALLEL_FOR
-					var iteraciones int = 0
+					var b bool
+					var s braceStack
+					var iteraciones string = "0"
+					
+					// Comprobar clausula default
+					if pragma.Default == NONE {
+						def_cond, def_var := var_not_prev_declare(pragma, varList)
+						if def_cond {
+							panic("Error: variable " + def_var + " no declarada previamente")
+						}
+					}
+					
 					bar, numParallel = barrier(numParallel)
 					out <- bar // Cambia el pragma por la barrera
 					sync <- nil
 					tok = <-in // Token "for"
 					iteraciones, tok = For_declare(tok, in, out, sync)
 					fmt.Println("Iteraciones del bucle paralelo:", iteraciones)
-					fmt.Println("Token devuelto:", tok.Str)
-					passToken(tok, out, sync)
 					
+					//VARIABLES PRIVATE
+					privateList := declareList(pragma, varList)
+					fmt.Println("Variables privadas:\n", privateList, "\n")
+					
+					out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + "for _i := _routine_num; _i <" + iteraciones + "; _i += _numCPUs {\n"
+					sync <- nil
+					
+					// init LBRACE
+					s.Push(true) // Llave de apertura de bloque Parallel For
+					endParallelFor := false
+					
+					for !endParallelFor {
+						tok = <-in
+						switch {
+						case tok.Token == token.LBRACE:
+							// An lbrace not associated with parallel
+							//s = Push(s, false)
+							s.Push(false)
+							passToken(tok, out, sync)
+						case tok.Token == token.RBRACE:
+							//s, b = Pop(s)
+							b = s.Pop()
+							if b {
+								// End the parallel for
+								out <- tok.Str + "\n" + " _barrier <- true\n" + "}(_i)\n" + "}\n" + "for _i := 0; _i < _numCPUs; _i++{\n" + "<-_barrier\n" + "}\n"
+								sync <- nil
+								endParallelFor = true
+							} else {
+								// An rbrace not associated with parallel
+								passToken(tok, out, sync)
+							}
+						case tok.Str == "Gomp_get_routine_num":
+							subs_Gomp_get_routine_num(in, out, sync)
+						case tok.Str == "Gomp_set_num_routines":
+							ign_Gomp_set_num_routine(in, out, sync)
+						default:
+							// Ignore
+							passToken(tok, out, sync)
+						}
+					}
 					continue
 				case 3: // PRAGMA THREADPRIVATE
 					eliminateToken(out, sync)
