@@ -11,6 +11,8 @@ import (
 	//. "gomp_lib"
 	"runtime"
 	//"strconv"
+	. "for_processor"
+	. "import_processor"
 )
 
 // Stack of bools, model with a slice.
@@ -113,7 +115,7 @@ func ign_Gomp_set_num_routine(in chan Token, out chan string, sync chan interfac
 // Funcion para tratar la clausula "num_threads".
 func set_num_threads(pragma Pragma) string {
 	if pragma.Num_threads == "" {
-		return "Gomp_get_num_routines()"
+		return "_numCPUs"
 	} else {
 		return pragma.Num_threads
 	}
@@ -206,6 +208,28 @@ func main() {
 
 			switch { // Tratamiento de Tokens
 
+			case tok.Token == token.IMPORT: // Tratamiento de import.
+				Imports_declare(tok, in, out, sync)
+				continue
+
+			case tok.Token == token.FUNC: // Tratamiento de la función "main"
+				passToken(tok, out, sync)
+				tok = <-in
+				if tok.Str == "main" {
+					for tok.Token != token.LBRACE {
+						passToken(tok, out, sync)
+						tok = <-in
+						}
+					// Inicializa el numero de CPUs
+					out <- tok.Str + "\n" + "_numCPUs := runtime.NumCPU()\n" + "runtime.GOMAXPROCS(_numCPUs)\n"
+					sync <- nil
+					continue
+
+				} else {
+					passToken(tok, out, sync)
+					continue
+				}
+
 			case tok.Str == "var": // Tratamiento para declaración de variables.
 				num_dec++ // Numero de declaraciones de variables (para testeo).
 				passToken(tok, out, sync)
@@ -292,10 +316,20 @@ func main() {
 						}
 					}
 					continue
-				case 1: // PRAGMA PRIVATE_FOR
-					panic("Error: Pragma Parallel_For en proceso...")
-				case 3: // PRAGMA THREADPRIVATE
+				case 1: // PRAGMA PARALLEL_FOR
+					var iteraciones int = 0
+					bar, numParallel = barrier(numParallel)
+					out <- bar // Cambia el pragma por la barrera
+					sync <- nil
+					tok = <-in // Token "for"
+					iteraciones, tok = For_declare(tok, in, out, sync)
+					fmt.Println("Iteraciones del bucle paralelo:", iteraciones)
+					fmt.Println("Token devuelto:", tok.Str)
 					passToken(tok, out, sync)
+					
+					continue
+				case 3: // PRAGMA THREADPRIVATE
+					eliminateToken(out, sync)
 					continue
 					// TO DO: Resto de tratamiento de pragmas
 				}

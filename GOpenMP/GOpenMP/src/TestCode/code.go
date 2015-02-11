@@ -44,7 +44,7 @@ func print_aux (ident int) int {
 	} 
 
 func main() {
-
+	
 	fmt.Println("Inicio de la region paralela")
 
 	//pragma    gomp   parallel  if (n>10) , num_threads(n + 5) private(a, b,c )   default(none), shared(d) private(e, f, g, h,p,fun , ch, ch_map)

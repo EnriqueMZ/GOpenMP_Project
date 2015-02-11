@@ -14,7 +14,7 @@ func main() {
 
 	//pragma gomp parallel for
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		cont++
 		fmt.Println("Gouroutine:", Gomp_get_routine_num(), " cont =", cont)
 	}

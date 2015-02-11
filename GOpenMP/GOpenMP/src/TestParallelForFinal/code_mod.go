@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	//. "gomp_lib"
-	"runtime" // Incluido
 )
+
+import "runtime" // Incluido
 
 func main() {
 
-	_numCPUs := runtime.NumCPU()
-	runtime.GOMAXPROCS(_numCPUs)
+	_numCPUs := runtime.NumCPU() // Incluido
+	runtime.GOMAXPROCS(_numCPUs) // Incluido
 
 	var cont int = 5
 	var i int
@@ -21,7 +22,7 @@ func main() {
 		//pragma gomp parallel for
 
 
-			for i := 0; i < 5; i++ {
+			for i := 0; i < 10; i+=2 {
 				cont++
 				fmt.Println("Gouroutine:", Gomp_get_routine_num(), " cont =", cont)
 			}
@@ -35,9 +36,9 @@ func main() {
 	//pragma gomp parallel for
 
 	var _barrier = make(chan bool)
-	for _i := 0; _i < 8; _i++ { // Hilos.
+	for _i := 0; _i < _numCPUs; _i++ { // Hilos.
 		go func(_routine_num int) {
-			for _j := _routine_num; _j < 10; _j += 8 { // Iteraciones + Hilos.
+			for _i := _routine_num; _i < 5; _i += _numCPUs { // Iteraciones reales + Hilos.
 				cont++
 				fmt.Println("Gouroutine:", _routine_num, " cont =", cont)
 			}
