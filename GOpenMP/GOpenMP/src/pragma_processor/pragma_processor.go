@@ -86,7 +86,7 @@ func noCommas(str string) string {
 }
 
 // Funcion que busca elementos repetidos dentro de un slice de strings.
-// Devuelve el elmento repetido, si existe.
+// Devuelve el elemento repetido, si existe.
 
 func repeatIn(a []string) (bool, string) {
 	var res bool = false
@@ -478,28 +478,28 @@ func ProcessPragma(pragma string) Pragma {
 		}
 		clauseType, _, clauseList = splitClauses(prgTyp, clauseList[0])
 		switch clauseType {
-		case 0:
+		case 0: // DEFAULT
 			if oneDefault == true {
 				panic("Error: no pueden declararse varias clausulas default en un pragma")
 			}
 			oneDefault = true
 			defTyp, clauseList = clauseContentDef(clauseList[0])
 			PragmaProcesed.Default = defTyp
-		case 1:
+		case 1: // IF
 			if oneIf == true {
 				panic("Error: no pueden declararse varias clausulas if en un pragma")
 			}
 			oneIf = true
 			ifCont, clauseList = clauseContentStr(clauseList[0])
 			PragmaProcesed.If_content = ifCont
-		case 2:
+		case 2: // NUM_THREADS
 			if oneNThreads == true {
 				panic("Error: no pueden declararse varias clausulas num_threads en un pragma")
 			}
 			oneNThreads = true
 			nThreadsCont, clauseList = clauseContentStr(clauseList[0])
 			PragmaProcesed.Num_threads = nThreadsCont
-		case 3:
+		case 3: // SHARED
 			contentList, clauseList = clauseContentList(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
@@ -507,7 +507,7 @@ func ProcessPragma(pragma string) Pragma {
 			}
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 			PragmaProcesed.Shared_List = concat(contentList, PragmaProcesed.Shared_List)
-		case 4:
+		case 4: // PRIVATE
 			contentList, clauseList = clauseContentList(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
@@ -515,7 +515,7 @@ func ProcessPragma(pragma string) Pragma {
 			}
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 			PragmaProcesed.Private_List = concat(contentList, PragmaProcesed.Private_List)
-		case 5:
+		case 5: // FIRSTPRIVATE
 			contentList, clauseList = clauseContentList(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
@@ -523,9 +523,9 @@ func ProcessPragma(pragma string) Pragma {
 			}
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 			PragmaProcesed.First_List = concat(contentList, PragmaProcesed.First_List)
-		case 6:
+		case 6: // COPYING
 			panic("Clausula copyin aun no implementada") // Hacer cuando enfrentemos directiva threadprivate
-		case 7:
+		case 7: // REDUCTION
 			operator, contentList, clauseList = clauseContentRed(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
