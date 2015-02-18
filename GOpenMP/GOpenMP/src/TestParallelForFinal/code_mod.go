@@ -21,16 +21,10 @@ func main() {
 	/*
 		//pragma gomp parallel for
 
-
 			for i := 0; i < 10; i+=2 {
 				cont++
 				fmt.Println("Gouroutine:", Gomp_get_routine_num(), " cont =", cont)
 			}
-
-		fmt.Println("Fin de la region paralela")
-		fmt.Println("Valores de las variables fuera del bloque parallel:", i, cont)
-
-		fmt.Println("Inicio de la region paralela")
 	*/
 
 	//pragma gomp parallel for

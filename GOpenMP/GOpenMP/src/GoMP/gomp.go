@@ -11,7 +11,7 @@ import (
 	//. "gomp_lib"
 	. "for_processor"
 	. "import_processor"
-	"runtime"
+	// "runtime"
 	"strconv"
 )
 
@@ -105,24 +105,28 @@ func stringOperator(op Red_Operator) string {
 	return str
 }
 
-func barrier_variable(numBarrier int, variable string, typ string, opr string) (string, string, string) {
+// Funcion que construye una barrera para una variable reduction.
+func barrier_variable(numBarrier int, variable string, typ string, opr string) (string, string, string, string) {
 	var num string = strconv.Itoa(numBarrier)
-	var name, dcl, send, rcv string
+	var name, dcl, send, var_dcl, rcv string
 	if variable == "nil" {
 		name = "_barrier_" + num + "_bool"
 		dcl = "var " + name + " = make(chan bool)\n"
 		send = name + " <- true\n"
+		var_dcl = ""
 		rcv = "<- " + name + "\n"
 	} else {
 		name = "_barrier_" + num + "_" + typ
 		dcl = "var " + name + " = make(chan " + typ + ")\n"
 		send = name + " <- " + variable + "\n"
+		var_dcl = variable + " := " + variable + "\n"
 		rcv = variable + " " + opr + "= <- " + name + "\n"
 	}
-	return dcl, send, rcv
+	return dcl, send, var_dcl, rcv
 
 }
 
+// Función para obtener el tipo de una variable marcada como reduction. Error si no se ha inicializado previamente.
 func search_typ(id string, varList []Variable) string {
 	var typ string = "error"
 	for i := range varList {
@@ -136,42 +140,47 @@ func search_typ(id string, varList []Variable) string {
 	return typ
 }
 
-func barrier_single_reduction(numBarrier int, clause Reduction_Type, varList []Variable) (string, string, string, int) {
-	var dcls, sends, rcvs string
+// Función que construye barreras para todas la variables de una clausula reduction.
+func barrier_single_reduction(numBarrier int, clause Reduction_Type, varList []Variable) (string, string, string, string, int) {
+	var dcls, sends, var_dcls, rcvs string
 	var numB int = numBarrier
 	opr := stringOperator(clause.Operator)
 	for i := range clause.Variables {
 		typ := search_typ(clause.Variables[i], varList)
-		dcl, send, rcv := barrier_variable(numB, clause.Variables[i], typ, opr)
+		dcl, send, var_dcl, rcv := barrier_variable(numB, clause.Variables[i], typ, opr)
 		dcls = dcls + dcl
 		sends = sends + send
+		var_dcls = var_dcls + var_dcl
 		rcvs = rcvs + rcv
 		numB++
 	}
 	fmt.Println("Valor del contador despues de una clausula:", numB)
-	return dcls, sends, rcvs, numB
+	return dcls, sends, var_dcls, rcvs, numB
 }
 
-func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varList []Variable) (string, string, string, int) {
-	var dcls, sends, rcvs string
+// Función que construye barreras para todas las variables de una lista de cluasulas reduction.
+func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varList []Variable) (string, string, string, string, int) {
+	var dcls, sends, var_dcls, rcvs string
 	var numB int
 	if len(reductionList) == 0 {
-		dcls_aux, sends_aux, rcvs_aux := barrier_variable(numB, "nil", "nil", "nil")
+		dcls_aux, sends_aux, var_dcls_aux, rcvs_aux := barrier_variable(numB, "nil", "nil", "nil")
 		dcls = dcls_aux
 		sends = sends_aux
+		var_dcls = var_dcls_aux
 		rcvs = rcvs_aux
 		numB++
 	} else {
 		for i := range reductionList {
-			dcls_aux, sends_aux, rcvs_aux, numB_aux := barrier_single_reduction(numB, reductionList[i], varList)
+			dcls_aux, sends_aux, var_dcls_aux, rcvs_aux, numB_aux := barrier_single_reduction(numB, reductionList[i], varList)
 			dcls = dcls + dcls_aux
 			sends = sends + sends_aux
+			var_dcls = var_dcls + var_dcls_aux
 			rcvs = rcvs + rcvs_aux
 			numB = numB_aux
 		}
 	}
 
-	return dcls, sends, rcvs, numB
+	return dcls, sends, var_dcls, rcvs, numB
 }
 
 // Funcion routineNum. Trata el token Gomp_get_routine_num()
@@ -255,8 +264,10 @@ func var_not_prev_declare(pragma Pragma, varList []Variable) (bool, string) {
 
 func declare(ident string, varList []Variable) string { // CORREGIR!!!!
 	var res string
+	var enc bool = false
 	for i := range varList {
 		if ident == varList[i].Ident {
+			enc = true
 			if varList[i].Type == "no_type" {
 				res = varList[i].Ident + "= reflect.Zero(reflect.TypeOf(" + varList[i].Ident + ")).Interface()"
 			} else {
@@ -264,6 +275,9 @@ func declare(ident string, varList []Variable) string { // CORREGIR!!!!
 			}
 			break
 		}
+	}
+	if !enc {
+		panic("Variable " + ident + " en clausula private no declarada previamente")
 	}
 	return res
 }
@@ -285,16 +299,16 @@ func declareList(pragma Pragma, varList []Variable) string {
 // Programa principal.
 func main() {
 	// Establecemos GOMAXPROCS
-	_numCPUs := runtime.NumCPU()
-	runtime.GOMAXPROCS(_numCPUs)
+	// _numCPUs := runtime.NumCPU()
+	// runtime.GOMAXPROCS(_numCPUs)
 	p := PipeInit(os.Stdin)
 	//Lines(p) // Muestra las lineas
 	Link(func(in chan Token,
 		tOut chan Token,
 		out chan string,
 		sync chan interface{}) {
-		//var numParallel int = 0 // Inicializa el numero de regiones paralelas
 		var numBarriers int = 0 // Inicializa el número de barreras
+		//var numParallel int = 0 // Inicializa el numero de regiones paralelas
 		//var tipe, bar string = "", ""
 		//var ini bool = false
 		for tok := range in {
@@ -359,11 +373,11 @@ func main() {
 							panic("Error: variable " + def_var + " no declarada previamente")
 						}
 					}
-					
+
 					// VARIABLES REDUCTION
-					dcls, sends, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
+					dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
 					numBarriers = numB
-					
+
 					out <- dcls + "for i := 0; i < " + set_num_threads(pragma) + "; i++{\n" + "go func(_routine_num int)"
 					sync <- nil
 
@@ -378,7 +392,9 @@ func main() {
 					//VARIABLES PRIVATE
 					privateList := declareList(pragma, varList)
 					fmt.Println("Variables privadas:\n", privateList, "\n")
-					out <- " {" + "var (" + privateList + ") \n"
+					
+					// Redeclaracion de variables
+					out <- " {" + "var (" + privateList + ") \n" + var_dcls
 					sync <- nil
 
 					// Tratamiento del contenido del Parallel
@@ -415,7 +431,7 @@ func main() {
 				case 1: // PRAGMA PARALLEL_FOR
 					var b bool
 					var s braceStack
-					var iteraciones string = "0"
+					var iteraciones string = "0" // Iteraciones del bucle paralelizado. Sólo para testeo.
 
 					// Comprobar clausula default
 					if pragma.Default == NONE {
@@ -426,19 +442,21 @@ func main() {
 					}
 					// VARIABLES PRIVATE
 					privateList := declareList(pragma, varList)
-					fmt.Println("Variables privadas:\n", privateList, "\n") // WARNING: ERROR CON LAS VARIABLES NO DECLARADAS
+					fmt.Println("Variables privadas:\n", privateList, "\n")
 
 					// VARIABLES REDUCTION
-					dcls, sends, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
+					dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
 					numBarriers = numB
 					
 					out <- dcls // Cambia el pragma por la declaracion de canales
 					sync <- nil
+					
 					tok = <-in // Token "for"
 					iteraciones, tok = For_declare(tok, in, out, sync)
 					fmt.Println("Iteraciones del bucle paralelo:", iteraciones)
-
-					out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + "for _i := _routine_num; _i <" + iteraciones + "; _i += _numCPUs {\n"
+					
+					// Lanzamiento de goroutines. Redeclaracion de variables
+					out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + var_dcls + "for _i := _routine_num; _i <" + iteraciones + "; _i += _numCPUs {\n"
 					sync <- nil
 
 					// init LBRACE
@@ -450,11 +468,9 @@ func main() {
 						switch {
 						case tok.Token == token.LBRACE:
 							// An lbrace not associated with parallel
-							//s = Push(s, false)
 							s.Push(false)
 							passToken(tok, out, sync)
 						case tok.Token == token.RBRACE:
-							//s, b = Pop(s)
 							b = s.Pop()
 							if b {
 								// End the parallel for

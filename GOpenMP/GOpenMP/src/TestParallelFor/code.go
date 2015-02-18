@@ -15,7 +15,7 @@ func main() {
 
 	fmt.Println("Inicio de la region paralela")
 
-	//pragma gomp parallel for reduction(+:sum1, sum2) reduction(*:prod) private(cont1)
+	//pragma gomp parallel for reduction(+:sum1, sum2) reduction(*:prod) private(cont)
 
 	for i := 0; i < 10; i += 2 {
 		sum1 += 1
