@@ -67,7 +67,7 @@ func interface_declare(tok Token, in chan Token, out chan string, sync chan inte
 	return str
 }
 
-// Funcion que trata la declaracion de un slice.
+// Funcion que trata la declaracion de un slice. 
 func slice_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "["
 	passToken(tok, out, sync)

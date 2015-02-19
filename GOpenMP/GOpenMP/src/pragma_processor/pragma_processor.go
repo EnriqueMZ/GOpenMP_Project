@@ -453,6 +453,7 @@ func ProcessPragma(pragma string) Pragma {
 	case 0:
 		PragmaProcesed.Default = SHA
 		PragmaProcesed.Def_Num_threads = runtime.NumCPU()
+		PragmaProcesed.Num_threads = "_numCPUs"
 		PragmaProcesed.Variable_List = variableList
 		PragmaProcesed.Shared_List = sharedList
 		PragmaProcesed.Private_List = privateList
@@ -461,6 +462,16 @@ func ProcessPragma(pragma string) Pragma {
 	case 1:
 		PragmaProcesed.Default = SHA
 		PragmaProcesed.Def_Num_threads = runtime.NumCPU()
+		PragmaProcesed.Num_threads = "_numCPUs"
+		PragmaProcesed.Variable_List = variableList
+		PragmaProcesed.Shared_List = sharedList
+		PragmaProcesed.Private_List = privateList
+		PragmaProcesed.First_List = firstList
+		PragmaProcesed.Reduction_List = reductionList
+	case 2:
+		PragmaProcesed.Default = SHA
+		PragmaProcesed.Def_Num_threads = runtime.NumCPU()
+		PragmaProcesed.Num_threads = "_numCPUs"
 		PragmaProcesed.Variable_List = variableList
 		PragmaProcesed.Shared_List = sharedList
 		PragmaProcesed.Private_List = privateList

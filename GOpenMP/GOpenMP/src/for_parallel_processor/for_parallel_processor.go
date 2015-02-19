@@ -1,4 +1,4 @@
-package for_processor
+package for_parallel_processor
 
 import (
 	"go/token"
@@ -52,7 +52,7 @@ func search_typ(id string, varList []Variable) string {
 }
 
 // Funcion que trata la declaracion de un bucle for paralelizado.
-func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable, routine_num string, for_threads string) (string, Token) {
+func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable) (string, string, Token) {
 	var num_iter string
 	var ini, fin, inc, steps string
 	var var_indice, aux string
@@ -64,38 +64,42 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 	tok = <-in
 	var_indice = tok.Str
 	// Reescribe el bucle
-	eliminateToken(out, sync)
+	out <- "_i"
+	sync <- nil
 	tok = <-in
 	if tok.Token != token.DEFINE && tok.Token != token.ASSIGN {
 		panic("Error: La variable indice debe definirse implicitamente")
 	}
-	eliminateToken(out, sync)
+	passToken(tok, out, sync)
 	tok = <-in
 	if tok.Token != token.INT {
 		panic("Error: la variable " + tok.Str + " debe definirse como un entero")
 	}
 	ini = tok.Str
 	// Reescribe el bucle
-	eliminateToken(out, sync)
+	out <- "0"
+	sync <- nil
 	tok = <-in
 	if tok.Token != token.SEMICOLON {
 		panic("Error: Espera un semicolon")
 	}
-	eliminateToken(out, sync)
+	passToken(tok, out, sync)
 	tok = <-in
 	aux = tok.Str
 	if aux != var_indice {
 		panic("Error: Debe emplear la misma variable en la declaracion del for")
 	}
 	// Reescribe el bucle
-	eliminateToken(out, sync)
+	out <- "_i"
+	sync <- nil
 	tok = <-in
 	err, inc = logic_operator(tok)
 	if err {
 		panic("Operador lógico no válido")
 	}
 	// Reescribe el bucle
-	eliminateToken(out, sync)
+	out <- "<"
+	sync <- nil
 	tok = <-in
 	if tok.Token == token.INT {
 		fin = tok.Str
@@ -112,38 +116,43 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 		}
 	}
 	// Reescribe el bucle
-	eliminateToken(out, sync)
+	out <- "_numCPUs"
+	sync <- nil
 	tok = <-in
 	if tok.Token != token.SEMICOLON {
 		panic("Error: Espera un semicolon")
 	}
-	eliminateToken(out, sync)
+	passToken(tok, out, sync)
 	tok = <-in
 	aux = tok.Str
 	if aux != var_indice {
 		panic("Error: Debe emplear la misma variable en la declaracion del for")
 	}
-	eliminateToken(out, sync)
+	out <- "_i"
+	sync <- nil
 	tok = <-in
 	switch tok.Token {
 	case token.INC, token.DEC:
 		steps = "1"
+		// Reescribe el bucle
+		out <- "++"
+		sync <- nil
+		tok = <-in
 	case token.ADD_ASSIGN, token.SUB_ASSIGN:
+		// Reescribe el bucle
+		out <- "++"
+		sync <- nil
+		tok = <-in
 		if tok.Token != token.INT {
 			panic("Error: Debe definirse como un entero")
 		}
-		steps = tok.Str
+		steps  = tok.Str
+		// Reescribe el bucle
+		eliminateToken(out, sync)
+		tok = <-in
 	}
+	// Se podria implemenar un if que controlara lo que se reescribe
 	num_iter = "((" + fin + " + " + inc + ") - " + ini + ") / " + steps // Cadena "((fin + inc) - ini) / steps"
-	if for_threads == "1" {
-		out <- "_i := " + routine_num + "; _i < " + num_iter + "; _i++"
-		sync <- nil
-		tok = <-in
-	} else {
-		out <- "_i := " + routine_num + "; _i < " + num_iter + "; _i += " + for_threads // _i := _routine_num; _i < ((n+0)-0)/1; _i += _numCPUs
-		sync <- nil
-		tok = <-in
-	}
-	return var_indice, tok
+	return num_iter, var_indice, tok
 	// 	WARNING!!! PARADO HASTA TERMINAR EL PROCESADOR DE IMPORTS
 }
