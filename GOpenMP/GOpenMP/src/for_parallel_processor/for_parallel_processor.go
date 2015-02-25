@@ -1,3 +1,13 @@
+/*
+ ===================================================================================
+ Name        : for_parallel_processor.go
+ Author      : Enrique Madridejos Zamorano
+ Version     :
+ Copyright   : Apache Licence Version 2.0
+ Description : Módulo para tratamiento de bucles dentro de un pragma parallel for
+ ===================================================================================
+ */
+
 package for_parallel_processor
 
 import (
@@ -51,18 +61,33 @@ func search_typ(id string, varList []Variable) string {
 	return typ
 }
 
+// Función que elimina una variable de una lista de variables.
+func delete_element(id string, privateList []string) []string {
+	for i := range privateList {
+		if id == privateList[i] {
+			privateList[i] = privateList[len(privateList)-1]
+			privateList = privateList[:len(privateList)-1]
+			break
+		}
+	}
+	return privateList
+}
+
 // Funcion que trata la declaracion de un bucle for paralelizado.
-func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable) (string, string, Token) {
+func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable, privateList []string) (string, string, string, Token, []string) {
 	var num_iter string
 	var ini, fin, inc, steps string
 	var var_indice, aux string
 	var err bool
+	var privateRes []string
 	if tok.Token != token.FOR {
 		panic("Error: Debe comenzar con un for")
 	}
 	passToken(tok, out, sync)
 	tok = <-in
 	var_indice = tok.Str
+	// Elimina la variable indice de la lista de variables privadas, si procede
+	privateRes = delete_element(var_indice, privateList)
 	// Reescribe el bucle
 	out <- "_i"
 	sync <- nil
@@ -70,7 +95,8 @@ func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan i
 	if tok.Token != token.DEFINE && tok.Token != token.ASSIGN {
 		panic("Error: La variable indice debe definirse implicitamente")
 	}
-	passToken(tok, out, sync)
+	out <- ":="
+	sync <- nil
 	tok = <-in
 	if tok.Token != token.INT {
 		panic("Error: la variable " + tok.Str + " debe definirse como un entero")
@@ -151,8 +177,6 @@ func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan i
 		eliminateToken(out, sync)
 		tok = <-in
 	}
-	// Se podria implemenar un if que controlara lo que se reescribe
-	num_iter = "((" + fin + " + " + inc + ") - " + ini + ") / " + steps // Cadena "((fin + inc) - ini) / steps"
-	return num_iter, var_indice, tok
-	// 	WARNING!!! PARADO HASTA TERMINAR EL PROCESADOR DE IMPORTS
-}
+	num_iter = "(" + fin + " + " + inc + ") / " + steps  // Cadena: "(fin + inc) / steps"
+	return num_iter, ini, var_indice, tok, privateRes
+	}

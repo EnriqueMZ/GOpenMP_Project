@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	. "gomp_lib"
+	"runtime"
 )
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 		res -= 2
 		cont++
 		fmt.Println("Gouroutine:", Gomp_get_routine_num(), " cont =", cont)
+		fmt.Println("Gouroutine del sistema:", runtime.NumGoroutine, " cont =", cont)
 	}
 
 	fmt.Println("Fin de la region paralela")

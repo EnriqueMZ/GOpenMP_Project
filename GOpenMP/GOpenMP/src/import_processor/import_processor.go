@@ -1,3 +1,13 @@
+/*
+ =============================================================================================
+ Name        : import_processor.go
+ Author      : Enrique Madridejos Zamorano
+ Version     :
+ Copyright   : Apache Licence Version 2.0
+ Description : Módulo para tratamiento de imporst declarados en el codigo original (runtime)
+ =============================================================================================
+ */
+
 package import_processor
 
 import (

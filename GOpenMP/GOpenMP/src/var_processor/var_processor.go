@@ -1,3 +1,14 @@
+/*
+ =================================================================================
+ Name        : for_parallel_processor.go
+ Author      : Enrique Madridejos Zamorano
+ Version     :
+ Copyright   : Apache Licence Version 2.0
+ Description : Módulo para tratamiento de declaraciones de variables.
+ 			   NOTA IMPORTANTE: Sólo admite variables declaradas IMPLÍCITAMENTE. 
+ =================================================================================
+ */
+
 package var_processor
 
 import (
@@ -28,7 +39,7 @@ func (stack *braceStack) Pop() bool {
 type Variable struct { // Estructura para variables inicializadas
 	Ident string // Identificador
 	Type  string // Tipo
-	Ini   bool   // ¿Esta inicializada?
+	Ini   bool   // ¿Está inicializada?
 }
 
 // Funciones para trabajo con tokens.

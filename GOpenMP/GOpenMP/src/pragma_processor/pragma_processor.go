@@ -1,3 +1,13 @@
+/*
+ ============================================================================================
+ Name        : pragma_processor.go
+ Author      : Enrique Madridejos Zamorano
+ Version     :
+ Copyright   : Apache Licence Version 2.0
+ Description : Módulo para tratamiento de las expresiones "pragma gomp" del codigo original
+ ============================================================================================
+ */
+
 package pragma_processor
 
 import (

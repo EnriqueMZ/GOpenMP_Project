@@ -23,6 +23,6 @@ func main() {
 	}
 	
 	fmt.Println("Vector x despues del parallel:", x)
-	fmt.Println("Vector y despues del parallel:", y)
+	fmt.Println("Vector y despues del parallel:", y)                                              
 
 }

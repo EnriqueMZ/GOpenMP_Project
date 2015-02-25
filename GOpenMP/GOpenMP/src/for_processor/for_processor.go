@@ -1,3 +1,13 @@
+/*
+ ==========================================================================
+ Name        : for_processor.go
+ Author      : Enrique Madridejos Zamorano
+ Version     :
+ Copyright   : Apache Licence Version 2.0
+ Description : Módulo para tratamiento de bucles dentro de un pragma for
+ ==========================================================================
+ */
+
 package for_processor
 
 import (
@@ -51,18 +61,33 @@ func search_typ(id string, varList []Variable) string {
 	return typ
 }
 
+// Función que elimina una variable de una lista de variables.
+func delete_element(id string, privateList []string) []string {
+	for i := range privateList {
+		if id == privateList[i] {
+			privateList[i] = privateList[len(privateList)-1]
+			privateList = privateList[:len(privateList)-1]
+			break
+		}
+	}
+	return privateList
+}
+
 // Funcion que trata la declaracion de un bucle for paralelizado.
-func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable, routine_num string, for_threads string) (string, Token) {
+func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable, privateList []string, routine_num string, for_threads string) (string, Token, []string) {
 	var num_iter string
 	var ini, fin, inc, steps string
 	var var_indice, aux string
 	var err bool
+	var privateRes []string
 	if tok.Token != token.FOR {
 		panic("Error: Debe comenzar con un for")
 	}
 	passToken(tok, out, sync)
 	tok = <-in
 	var_indice = tok.Str
+	// Elimina la variable indice de la lista de variables privadas, si procede
+	privateRes = delete_element(var_indice, privateList)
 	// Reescribe el bucle
 	eliminateToken(out, sync)
 	tok = <-in
@@ -134,16 +159,15 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 		}
 		steps = tok.Str
 	}
-	num_iter = "((" + fin + " + " + inc + ") - " + ini + ") / " + steps // Cadena "((fin + inc) - ini) / steps"
+	num_iter = "(" + fin + " + " + inc + ") / " + steps // Cadena "(fin + inc) / steps"
 	if for_threads == "1" {
 		out <- "_i := " + routine_num + "; _i < " + num_iter + "; _i++"
 		sync <- nil
 		tok = <-in
 	} else {
-		out <- "_i := " + routine_num + "; _i < " + num_iter + "; _i += " + for_threads // _i := _routine_num; _i < ((n+0)-0)/1; _i += _numCPUs
+		out <- "_i := " + routine_num + " + " + ini + "; _i < " + num_iter + "; _i += " + for_threads // _i := _routine_num + 0; _i < (n+0)/1; _i += _numCPUs
 		sync <- nil
 		tok = <-in
 	}
-	return var_indice, tok
-	// 	WARNING!!! PARADO HASTA TERMINAR EL PROCESADOR DE IMPORTS
+	return var_indice, tok, privateRes
 }
