@@ -3,14 +3,13 @@ package main
 import (
 	"fmt"
 	. "gomp_lib"
-	"runtime"
 )
 
 func main() {
 
 	var sum1 int = 0
 	var sum2 int = 0
-	var prod float64 = 0
+	var prod float64 = 2
 	var res float64 = 1000
 	var cont int = 0
 
@@ -25,9 +24,7 @@ func main() {
 		res -= 2
 		cont++
 		fmt.Println("Gouroutine:", Gomp_get_routine_num(), " cont =", cont)
-		fmt.Println("Gouroutine del sistema:", runtime.NumGoroutine, " cont =", cont)
 	}
-
 	fmt.Println("Fin de la region paralela")
 	fmt.Println("Valores de la variable fuera del bloque parallel:", sum1, sum2, prod)
 

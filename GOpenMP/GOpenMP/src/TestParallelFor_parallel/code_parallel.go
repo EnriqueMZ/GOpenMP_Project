@@ -3,15 +3,20 @@ package main
 import (
 	"fmt"
 	//. "gomp_lib"
-	"runtime"
 )
 
-func main() {
-	_numCPUs := runtime.NumCPU()
+import "runtime"
+
+var _numCPUs = runtime.NumCPU()
+
+func _init_numCPUs() {
 	runtime.GOMAXPROCS(_numCPUs)
+}
+func main() {
+	_init_numCPUs()
 	var sum1 int = 0
 	var sum2 int = 0
-	var prod float64 = 0
+	var prod float64 = 2
 	var res float64 = 1000
 	//var cont int = 0
 	fmt.Println("Inicio de la region paralela")
@@ -26,14 +31,13 @@ func main() {
 			var sum1 int
 			var sum2 int
 			var prod float64
-			for _i := _routine_num + 0; _i < (10+0)/2; _i += _numCPUs {
+			for i := _routine_num + 0; i < (10+0)/2; i += _numCPUs {
 				sum1 += 1
 				sum2 += 2
 				prod *= 2
 				res -= 2
 				cont++
 				fmt.Println("Gouroutine:", _routine_num, " cont =", cont)
-				fmt.Println("Gouroutine del sistema:", runtime.NumGoroutine, " cont =", cont)
 			}
 			_barrier_0_int <- sum1
 			_barrier_1_int <- sum2

@@ -14,22 +14,23 @@ func _init_numCPUs() {
 }
 func prime_number(a int) int {
 	var n int = a
-	// var i int
-	// var j int
-	// var prime int
+	//var i int
+	//var j int
+	//var prime int
 	var total int = 0
 	var _barrier_0_int = make(chan int)
 	for _i := 0; _i < _numCPUs; _i++ {
 		go func(_routine_num int) {
 			var (
-				prime	int
+				i	int
 				j	int
+				prime	int
 			)
 			var total int
-			for _i := _routine_num + 2; _i < (n+1)/1; _i += _numCPUs {
+			for i = _routine_num + 2; i < (n+1)/1; i += _numCPUs {
 				prime = 1
-				for j = 2; j < _i; j++ {
-					if _i%j == 0 {
+				for j = 2; j < i; j++ {
+					if i%j == 0 {
 						prime = 0
 						break
 					}

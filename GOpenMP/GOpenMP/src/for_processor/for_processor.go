@@ -62,7 +62,7 @@ func search_typ(id string, varList []Variable) string {
 }
 
 // Función que elimina una variable de una lista de variables.
-func delete_element(id string, privateList []string) []string {
+func eliminate_element(id string, privateList []string) []string {
 	for i := range privateList {
 		if id == privateList[i] {
 			privateList[i] = privateList[len(privateList)-1]
@@ -73,27 +73,37 @@ func delete_element(id string, privateList []string) []string {
 	return privateList
 }
 
+// Función que añade una variable a una lista de variables.
+func add_element(id string, privateList []string) []string {
+	for i := range privateList {
+		if id == privateList[i] {
+			break
+		}else{
+			element := id + " int"
+			privateList = append(privateList, element)
+			}
+	}
+	return privateList
+}
+
 // Funcion que trata la declaracion de un bucle for paralelizado.
-func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable, privateList []string, routine_num string, for_threads string) (string, Token, []string) {
-	var num_iter string
-	var ini, fin, inc, steps string
-	var var_indice, aux string
+func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable, routine_num string, for_threads string) Token {
+	var num_iter, ini, fin, inc, steps, var_indice, aux, assign string
 	var err bool
-	var privateRes []string
 	if tok.Token != token.FOR {
 		panic("Error: Debe comenzar con un for")
 	}
 	passToken(tok, out, sync)
 	tok = <-in
 	var_indice = tok.Str
-	// Elimina la variable indice de la lista de variables privadas, si procede
-	privateRes = delete_element(var_indice, privateList)
 	// Reescribe el bucle
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token != token.DEFINE && tok.Token != token.ASSIGN {
 		panic("Error: La variable indice debe definirse implicitamente")
-	}
+	}else{
+		assign = tok.Str
+		}
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token != token.INT {
@@ -161,13 +171,13 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 	}
 	num_iter = "(" + fin + " + " + inc + ") / " + steps // Cadena "(fin + inc) / steps"
 	if for_threads == "1" {
-		out <- "_i := " + routine_num + "; _i < " + num_iter + "; _i++"
+		out <- var_indice + assign + " " + routine_num + "; "+ var_indice + " < " + num_iter + "; " + var_indice + "++"
 		sync <- nil
 		tok = <-in
 	} else {
-		out <- "_i := " + routine_num + " + " + ini + "; _i < " + num_iter + "; _i += " + for_threads // _i := _routine_num + 0; _i < (n+0)/1; _i += _numCPUs
+		out <- var_indice + assign + " " + routine_num + " + " + ini + "; " + var_indice + " < " + num_iter + "; " + var_indice + " += " + for_threads // _i := _routine_num + 0; _i < (n+0)/1; _i += _numCPUs
 		sync <- nil
 		tok = <-in
 	}
-	return var_indice, tok, privateRes
+	return tok
 }

@@ -43,29 +43,29 @@ func main() {
 		go func(_routine_num int) {
 			var (
 				angle	float64
-				//i	int
+				i	int
 				j	int
 				k	int
 			)
-			for _i := _routine_num + 0; _i < (n+0)/1; _i += _numCPUs {
+			for i = _routine_num + 0; i < (n+0)/1; i += _numCPUs {
 				var ()
 				for j = 0; j < n; j++ {
-					angle = 2.0 * pi * float64(_i) * float64(j) / float64(n)
-					a[_i][j] = s * (math.Sin(angle) + math.Cos(angle))
+					angle = 2.0 * pi * float64(i) * float64(j) / float64(n)
+					a[i][j] = s * (math.Sin(angle) + math.Cos(angle))
 				}
 			}
-			for _i := _routine_num + 0; _i < (n+0)/1; _i += _numCPUs {
+			for i = _routine_num + 0; i < (n+0)/1; i += _numCPUs {
 				var ()
 				for j = 0; j < n; j++ {
-					b[_i][j] = a[_i][j]
+					b[i][j] = a[i][j]
 				}
 			}
-			for _i := _routine_num + 0; _i < (n+0)/1; _i += _numCPUs {
+			for i = _routine_num + 0; i < (n+0)/1; i += _numCPUs {
 				var ()
 				for j = 0; j < n; j++ {
-					c[_i][j] = 0.0
+					c[i][j] = 0.0
 					for k = 0; k < n; k++ {
-						c[_i][j] = c[_i][j] + a[_i][k]*b[k][j]
+						c[i][j] = c[i][j] + a[i][k]*b[k][j]
 					}
 				}
 			}

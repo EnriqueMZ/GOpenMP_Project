@@ -8,7 +8,8 @@ import (
 
 // Comentario de prueba (  private(A,e) , firstprivate(B) reduction(+:f,g) , reduction(-: h, i) ). Porque
 
-var n io.Reader 
+var n int
+var read io.Reader 
 var i = false
 var fin bool = true
 var a, b, c, d int = 5, 2, 4, 7

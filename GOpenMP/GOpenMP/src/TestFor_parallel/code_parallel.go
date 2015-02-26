@@ -24,6 +24,7 @@ func main() {
 		go func(_routine_num int) {
 			var ()
 			for i := _routine_num + 0; i < (n+0)/1; i += _numCPUs {
+				var ()
 				y[i] = a*x[i] + y[i]
 			}
 			_barrier_0_bool <- true

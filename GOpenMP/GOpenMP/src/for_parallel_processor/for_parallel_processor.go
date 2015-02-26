@@ -73,28 +73,38 @@ func delete_element(id string, privateList []string) []string {
 	return privateList
 }
 
+// Función que añade una variable a una lista de variables.
+func add_element(id string, privateList []string) []string {
+	for i := range privateList {
+		if id == privateList[i] {
+			break
+		}else{
+			element := id + " int"
+			privateList = append(privateList, element)
+			}
+	}
+	return privateList
+}
+
 // Funcion que trata la declaracion de un bucle for paralelizado.
-func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable, privateList []string) (string, string, string, Token, []string) {
-	var num_iter string
-	var ini, fin, inc, steps string
-	var var_indice, aux string
+func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable) (string, string, string, string, Token) {
+	var num_iter, ini, fin, inc, steps, var_indice, aux, assign string
 	var err bool
-	var privateRes []string
 	if tok.Token != token.FOR {
 		panic("Error: Debe comenzar con un for")
 	}
 	passToken(tok, out, sync)
 	tok = <-in
 	var_indice = tok.Str
-	// Elimina la variable indice de la lista de variables privadas, si procede
-	privateRes = delete_element(var_indice, privateList)
 	// Reescribe el bucle
 	out <- "_i"
 	sync <- nil
 	tok = <-in
 	if tok.Token != token.DEFINE && tok.Token != token.ASSIGN {
 		panic("Error: La variable indice debe definirse implicitamente")
-	}
+	}else{
+		assign = tok.Str
+		}
 	out <- ":="
 	sync <- nil
 	tok = <-in
@@ -178,5 +188,5 @@ func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan i
 		tok = <-in
 	}
 	num_iter = "(" + fin + " + " + inc + ") / " + steps  // Cadena: "(fin + inc) / steps"
-	return num_iter, ini, var_indice, tok, privateRes
+	return num_iter, ini, var_indice, assign, tok
 	}

@@ -27,10 +27,12 @@ func main() {
 	var _barrier_0_float64 = make(chan float64)
 	for _i := 0; _i < _numCPUs; _i++ {
 		go func(_routine_num int) {
-			var ()
+			var (
+				i int
+			)
 			var sum float64
-			for _i := _routine_num + 0; _i < (n+0)/1; _i += _numCPUs {
-				sum += a[_i] * b[_i]
+			for i = _routine_num + 0; i < (n+0)/1; i += _numCPUs {
+				sum += a[i] * b[i]
 			}
 			_barrier_0_float64 <- sum
 		}(_i)
