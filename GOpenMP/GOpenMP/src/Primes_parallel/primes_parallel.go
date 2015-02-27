@@ -12,8 +12,7 @@ var _numCPUs = runtime.NumCPU()
 func _init_numCPUs() {
 	runtime.GOMAXPROCS(_numCPUs)
 }
-func prime_number(a int) int {
-	var n int = a
+func prime_number(n int) int {
 	//var i int
 	//var j int
 	//var prime int
@@ -88,3 +87,4 @@ func main() {
 	fmt.Println("PRIME_OPENMP")
 	fmt.Println("  Normal end of execution.")
 }
+

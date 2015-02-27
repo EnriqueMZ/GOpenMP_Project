@@ -165,33 +165,30 @@ func barrier_single_reduction(numBarrier int, clause Reduction_Type, varList []V
 		rcvs = rcvs + rcv
 		numB++
 	}
-	fmt.Println("Valor del contador despues de una clausula:", numB)
 	return dcls, sends, var_dcls, rcvs, numB
 }
 
 // Función que construye barreras para todas las variables de una lista de cluasulas reduction.
 func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varList []Variable) (string, string, string, string, int) {
 	var dcls, sends, var_dcls, rcvs string
-	var numB int
 	if len(reductionList) == 0 {
-		dcls_aux, sends_aux, var_dcls_aux, rcvs_aux := barrier_variable(numB, "nil", "nil", "nil")
+		dcls_aux, sends_aux, var_dcls_aux, rcvs_aux := barrier_variable(numBarrier, "nil", "nil", "nil")
 		dcls = dcls_aux
 		sends = sends_aux
 		var_dcls = var_dcls_aux
 		rcvs = rcvs_aux
-		numB++
+		numBarrier++
 	} else {
 		for i := range reductionList {
-			dcls_aux, sends_aux, var_dcls_aux, rcvs_aux, numB_aux := barrier_single_reduction(numB, reductionList[i], varList)
+			dcls_aux, sends_aux, var_dcls_aux, rcvs_aux, numB_aux := barrier_single_reduction(numBarrier, reductionList[i], varList)
 			dcls = dcls + dcls_aux
 			sends = sends + sends_aux
 			var_dcls = var_dcls + var_dcls_aux
 			rcvs = rcvs + rcvs_aux
-			numB = numB_aux
+			numBarrier = numB_aux
 		}
 	}
-
-	return dcls, sends, var_dcls, rcvs, numB
+	return dcls, sends, var_dcls, rcvs, numBarrier
 }
 
 // Funcion routineNum. Trata el token Gomp_get_routine_num()
@@ -299,7 +296,7 @@ func declareList(pragma Pragma, varList []Variable) string {
 }
 
 // Funcion que reescribe el codigo si se trata de un pragma
-func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interface{}, num_prag int, in_parallel bool, routine_num string, for_threads string, numBarriers int) int {
+func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interface{}, num_prag int, in_parallel bool, routine_num string, for_threads string, numBarriers int) (int, int) {
 	num_prag++
 	fmt.Println("Numero de pragmas actual: ", num_prag, "\n")
 	fmt.Println("Pragma: ", tok.Str, "\n") // Recordar retirar los fmt.PrintLn
@@ -314,7 +311,6 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		endParallel := false
 		routine_num = "_routine_num"     // String con el identificador de rutina.
 		for_threads = pragma.Num_threads // String con el numero de hilos del Parallel.
-
 		// Comprobar clausula default
 		if pragma.Default == NONE {
 			def_cond, def_var := var_not_prev_declare(pragma, varList)
@@ -326,7 +322,6 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		// VARIABLES REDUCTION
 		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
 		numBarriers = numB
-
 		out <- dcls + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + "go func(_routine_num int)"
 		sync <- nil
 
@@ -369,7 +364,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 			case tok.Str == "Gomp_set_num_routines":
 				ign_Gomp_set_num_routine(in, out, sync)
 			case isPragma(tok):
-				num_prag = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+				num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
 			default:
 				// Ignore
 				passToken(tok, out, sync)
@@ -389,11 +384,9 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 				panic("Error: variable " + def_var + " no declarada previamente")
 			}
 		}
-
 		// VARIABLES REDUCTION
 		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
 		numBarriers = numB
-
 		out <- dcls // Cambia el pragma por la declaracion de canales
 		sync <- nil
 
@@ -520,7 +513,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		eliminateToken(out, sync)
 		// TO DO: Resto de tratamiento de pragmas
 	}
-	return num_prag
+	return num_prag, numBarriers
 }
 
 // Programa principal.
@@ -575,7 +568,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)
@@ -622,7 +615,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)
@@ -676,7 +669,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)
@@ -723,7 +716,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)

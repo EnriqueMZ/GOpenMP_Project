@@ -25,6 +25,17 @@ func main() {
 		cont++
 		fmt.Println("Gouroutine:", Gomp_get_routine_num(), " cont =", cont)
 	}
+	
+	//pragma gomp parallel
+	{
+		fmt.Println("Gouroutine:", Gomp_get_routine_num())
+		var cont int = Gomp_get_routine_num()
+		for i := 0; i < 3; i++ {
+			cont++
+		}
+		fmt.Println("cont =", cont)
+	}
+	
 	fmt.Println("Fin de la region paralela")
 	fmt.Println("Valores de la variable fuera del bloque parallel:", sum1, sum2, prod)
 
