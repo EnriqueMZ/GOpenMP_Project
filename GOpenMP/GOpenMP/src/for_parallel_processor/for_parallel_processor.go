@@ -48,11 +48,18 @@ func logic_operator(tok Token) (bool, string) {
 }
 
 // Función para obtener el tipo de una variable marcada como reduction. Error si no se ha inicializado previamente.
-func search_typ(id string, varList []Variable) string {
+func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) string {
 	var typ string = "error"
-	for i := range varList {
-		if id == varList[i].Ident {
-			typ = varList[i].Type
+	for i := range varGlobalList {
+		if id == varGlobalList[i].Ident {
+			typ = varGlobalList[i].Type
+			break
+		}
+	}
+	for i := range varLocalList {
+		if id == varLocalList[i].Ident {
+			typ = varLocalList[i].Type
+			break
 		}
 	}
 	if typ == "error" {
@@ -87,7 +94,7 @@ func add_element(id string, privateList []string) []string {
 }
 
 // Funcion que trata la declaracion de un bucle for paralelizado.
-func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varList []Variable) (string, string, string, string, Token) {
+func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varGlobalList []Variable, varLocalList []Variable) (string, string, string, string, Token) {
 	var num_iter, ini, fin, inc, steps, var_indice, aux, assign string
 	var err bool
 	if tok.Token != token.FOR {
@@ -141,7 +148,7 @@ func For_parallel_declare(tok Token, in chan Token, out chan string, sync chan i
 		fin = tok.Str
 	} else {
 		if tok.Token == token.IDENT {
-			typ := search_typ(tok.Str, varList)
+			typ := search_typ(tok.Str, varGlobalList, varLocalList)
 			if typ != "int" {
 				panic("Error: la variable " + tok.Str + " debe definirse como un entero")
 			} else {

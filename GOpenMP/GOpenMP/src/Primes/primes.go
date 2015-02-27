@@ -5,9 +5,7 @@ import (
 	"gomp_lib"
 )
 
-func prime_number(a int) int {
-	
-	var n int = a
+func prime_number(n int) int {
 	var i int
 	var j int
 	var prime int

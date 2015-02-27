@@ -59,7 +59,7 @@ func isPragma(token Token) bool {
 var num_dec int = 0
 
 // Lista de variables declaradas.
-var varList []Variable
+var varGlobalList []Variable
 
 // Numero de pragmas. Solo para testeo.
 var num_prag int = 0
@@ -138,11 +138,18 @@ func barrier_variable(numBarrier int, variable string, typ string, opr string) (
 }
 
 // Función para obtener el tipo de una variable marcada como reduction. Error si no se ha inicializado previamente.
-func search_typ(id string, varList []Variable) string {
+func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) string {
 	var typ string = "error"
-	for i := range varList {
-		if id == varList[i].Ident {
-			typ = varList[i].Type
+	for i := range varGlobalList {
+		if id == varGlobalList[i].Ident {
+			typ = varGlobalList[i].Type
+			break
+		}
+	}
+	for i := range varLocalList {
+		if id == varLocalList[i].Ident {
+			typ = varLocalList[i].Type
+			break
 		}
 	}
 	if typ == "error" {
@@ -152,12 +159,12 @@ func search_typ(id string, varList []Variable) string {
 }
 
 // Función que construye barreras para todas la variables de una clausula reduction.
-func barrier_single_reduction(numBarrier int, clause Reduction_Type, varList []Variable) (string, string, string, string, int) {
+func barrier_single_reduction(numBarrier int, clause Reduction_Type, varGlobalList []Variable, varLocalList []Variable) (string, string, string, string, int) {
 	var dcls, sends, var_dcls, rcvs string
 	var numB int = numBarrier
 	opr := stringOperator(clause.Operator)
 	for i := range clause.Variables {
-		typ := search_typ(clause.Variables[i], varList)
+		typ := search_typ(clause.Variables[i], varGlobalList, varLocalList)
 		dcl, send, var_dcl, rcv := barrier_variable(numB, clause.Variables[i], typ, opr)
 		dcls = dcls + dcl
 		sends = sends + send
@@ -169,7 +176,7 @@ func barrier_single_reduction(numBarrier int, clause Reduction_Type, varList []V
 }
 
 // Función que construye barreras para todas las variables de una lista de cluasulas reduction.
-func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varList []Variable) (string, string, string, string, int) {
+func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varGlobalList []Variable, varLocalList []Variable) (string, string, string, string, int) {
 	var dcls, sends, var_dcls, rcvs string
 	if len(reductionList) == 0 {
 		dcls_aux, sends_aux, var_dcls_aux, rcvs_aux := barrier_variable(numBarrier, "nil", "nil", "nil")
@@ -180,7 +187,7 @@ func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varL
 		numBarrier++
 	} else {
 		for i := range reductionList {
-			dcls_aux, sends_aux, var_dcls_aux, rcvs_aux, numB_aux := barrier_single_reduction(numBarrier, reductionList[i], varList)
+			dcls_aux, sends_aux, var_dcls_aux, rcvs_aux, numB_aux := barrier_single_reduction(numBarrier, reductionList[i], varGlobalList, varLocalList)
 			dcls = dcls + dcls_aux
 			sends = sends + sends_aux
 			var_dcls = var_dcls + var_dcls_aux
@@ -244,7 +251,7 @@ func notFound(a string, varList []Variable) (bool, string) {
 }
 
 // Funcion que comprueba las variables de una clausula default(none) con las variables declaradas.
-func var_not_prev_declare(pragma Pragma, varList []Variable) (bool, string) {
+func var_not_prev_declare(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) (bool, string) {
 	var res bool
 	var v string
 	if len(pragma.Variable_List) == 0 {
@@ -252,25 +259,43 @@ func var_not_prev_declare(pragma Pragma, varList []Variable) (bool, string) {
 		v = ""
 	} else {
 		for i := range pragma.Variable_List {
-			res, v = notFound(pragma.Variable_List[i], varList)
+			res, v = notFound(pragma.Variable_List[i], varGlobalList)
+			if res {
+				break
+			}
+		}
+		for i := range pragma.Variable_List {
+			res, v = notFound(pragma.Variable_List[i], varLocalList)
 			if res {
 				break
 			}
 		}
 	}
+	
 	return res, v
 }
 
-func declare(ident string, varList []Variable) string { // WARNING: Puede necesitar correción.
+func declare(ident string, varGlobalList []Variable, varLocalList []Variable) string { // WARNING: Puede necesitar correción.
 	var res string
 	var enc bool = false
-	for i := range varList {
-		if ident == varList[i].Ident {
+	for i := range varGlobalList {
+		if ident == varGlobalList[i].Ident {
 			enc = true
-			if varList[i].Type == "no_type" {
-				res = varList[i].Ident + "= reflect.Zero(reflect.TypeOf(" + varList[i].Ident + ")).Interface()"
+			if varGlobalList[i].Type == "no_type" {
+				res = varGlobalList[i].Ident + "= reflect.Zero(reflect.TypeOf(" + varGlobalList[i].Ident + ")).Interface()"
 			} else {
-				res = varList[i].Ident + " " + varList[i].Type
+				res = varGlobalList[i].Ident + " " + varGlobalList[i].Type
+			}
+			break
+		}
+	}
+	for i := range varLocalList {
+		if ident == varLocalList[i].Ident {
+			enc = true
+			if varLocalList[i].Type == "no_type" {
+				res = varLocalList[i].Ident + "= reflect.Zero(reflect.TypeOf(" + varLocalList[i].Ident + ")).Interface()"
+			} else {
+				res = varLocalList[i].Ident + " " + varLocalList[i].Type
 			}
 			break
 		}
@@ -282,21 +307,21 @@ func declare(ident string, varList []Variable) string { // WARNING: Puede necesi
 }
 
 // Funcion que crea el string para re-inicializacion de variables private. WARNING: Variables declaradas de forma implicita!!!
-func declareList(pragma Pragma, varList []Variable) string {
+func declareList(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) string {
 	var res string
 	if len(pragma.Private_List) == 0 {
 		res = ""
 	} else {
-		res = declare(pragma.Private_List[0], varList)
+		res = declare(pragma.Private_List[0], varGlobalList, varLocalList)
 		for i := 1; i < len(pragma.Private_List); i++ {
-			res = res + ";\n" + declare(pragma.Private_List[i], varList)
+			res = res + ";\n" + declare(pragma.Private_List[i], varGlobalList, varLocalList)
 		}
 	}
 	return res
 }
 
 // Funcion que reescribe el codigo si se trata de un pragma
-func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interface{}, num_prag int, in_parallel bool, routine_num string, for_threads string, numBarriers int) (int, int) {
+func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interface{}, num_prag int, in_parallel bool, routine_num string, for_threads string, numBarriers int, varLocalList []Variable) (int, int) {
 	num_prag++
 	fmt.Println("Numero de pragmas actual: ", num_prag, "\n")
 	fmt.Println("Pragma: ", tok.Str, "\n") // Recordar retirar los fmt.PrintLn
@@ -313,14 +338,14 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		for_threads = pragma.Num_threads // String con el numero de hilos del Parallel.
 		// Comprobar clausula default
 		if pragma.Default == NONE {
-			def_cond, def_var := var_not_prev_declare(pragma, varList)
+			def_cond, def_var := var_not_prev_declare(pragma, varGlobalList, varLocalList)
 			if def_cond {
 				panic("Error: variable " + def_var + " no declarada previamente")
 			}
 		}
 
 		// VARIABLES REDUCTION
-		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
+		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varGlobalList, varLocalList)
 		numBarriers = numB
 		out <- dcls + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + "go func(_routine_num int)"
 		sync <- nil
@@ -333,7 +358,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		s.Push(true) // Llave de apertura de bloque Parallel
 
 		//VARIABLES PRIVATE
-		privateList := declareList(pragma, varList)
+		privateList := declareList(pragma, varGlobalList, varLocalList)
 		fmt.Println("Variables privadas en pragma parallel:", privateList)
 
 		// Redeclaracion de variables private y reduction.
@@ -364,7 +389,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 			case tok.Str == "Gomp_set_num_routines":
 				ign_Gomp_set_num_routine(in, out, sync)
 			case isPragma(tok):
-				num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+				num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 			default:
 				// Ignore
 				passToken(tok, out, sync)
@@ -379,24 +404,24 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 
 		// Comprobar clausula default
 		if pragma.Default == NONE {
-			def_cond, def_var := var_not_prev_declare(pragma, varList)
+			def_cond, def_var := var_not_prev_declare(pragma, varGlobalList, varLocalList)
 			if def_cond {
 				panic("Error: variable " + def_var + " no declarada previamente")
 			}
 		}
 		// VARIABLES REDUCTION
-		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
+		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varGlobalList, varLocalList)
 		numBarriers = numB
 		out <- dcls // Cambia el pragma por la declaracion de canales
 		sync <- nil
 
 		tok = <-in // Token "for"
-		fmt.Println("Variables declaradas antes del parallel for:", varList)
-		iteraciones, ini, var_indice, assign, tok = For_parallel_declare(tok, in, out, sync, varList)
+		fmt.Println("Variables declaradas antes del parallel for:", varGlobalList, varLocalList)
+		iteraciones, ini, var_indice, assign, tok = For_parallel_declare(tok, in, out, sync, varGlobalList, varLocalList)
 		fmt.Println("Iteraciones del bucle paralelo:", iteraciones)
 
 		// VARIABLES PRIVATE
-		privateList := declareList(pragma, varList)
+		privateList := declareList(pragma, varGlobalList, varLocalList)
 		fmt.Println("Variables privadas en parallel for:", privateList)
 
 		// Lanzamiento de goroutines. Redeclaracion de variables
@@ -444,7 +469,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 
 		// Comprobar clausula default
 		if pragma.Default == NONE {
-			def_cond, def_var := var_not_prev_declare(pragma, varList)
+			def_cond, def_var := var_not_prev_declare(pragma, varGlobalList, varLocalList)
 			if def_cond {
 				panic("Error: variable " + def_var + " no declarada previamente")
 			}
@@ -462,12 +487,12 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		eliminateToken(out, sync) // Eliminamos el pragma
 
 		tok = <-in // Token "for"
-		fmt.Println("Variables declaradas antes del parallel for:", varList)
-		tok = For_declare(tok, in, out, sync, varList, routine_num, for_threads)
+		fmt.Println("Variables declaradas antes del parallel for:", varGlobalList, varLocalList)
+		tok = For_declare(tok, in, out, sync, varGlobalList, varLocalList, routine_num, for_threads)
 		fmt.Println("Iteraciones del bucle paralelo:", iteraciones)
 
 		// VARIABLES PRIVATE
-		privateList := declareList(pragma, varList)
+		privateList := declareList(pragma, varGlobalList, varLocalList)
 		fmt.Println("Variables privadas en pragma for:", privateList)
 
 		// Lanzamiento de goroutines. Redeclaracion de variables
@@ -547,6 +572,7 @@ func main() {
 			case tok.Token == token.FUNC: // Tratamiento de _numCPUs
 				var b bool
 				var s braceStack
+				var varLocalList []Variable // Lista de variables locales de una funcion.
 				if numFunc == 0 { // Es la primera funcion del código.
 					numFunc++
 					out <- "var _numCPUs = runtime.NumCPU()\n" + "func _init_numCPUs(){\n" + "runtime.GOMAXPROCS(_numCPUs)\n" + "}\n" + tok.Str
@@ -554,6 +580,13 @@ func main() {
 					tok = <-in
 					fmt.Println("Entrando en la primera funcion:", tok.Str)
 					if tok.Str == "main" { // La primera funcion es "main".
+						for tok.Token != token.LPAREN {
+							passToken(tok, out, sync)
+							tok = <-in
+						}
+						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
+						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
 							tok = <-in
@@ -568,7 +601,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)
@@ -576,10 +609,10 @@ func main() {
 								fmt.Println("Variable local:", tok.Str)
 								if tok.Token == token.LPAREN {
 									// Declaracion simple
-									varList = Var_concat(varList, Var_simple_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
 									// Declaracion multiple
-									varList = Var_concat(varList, Var_multi_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
 								// An lbrace not associated with parallel
@@ -592,7 +625,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Saliendo de la funcion")
+									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -603,6 +636,13 @@ func main() {
 						}
 						continue
 					} else { // La primera funcion no es un "main".						
+						for tok.Token != token.LPAREN {
+							passToken(tok, out, sync)
+							tok = <-in
+						}
+						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
+						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
 							tok = <-in
@@ -615,7 +655,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)
@@ -623,10 +663,10 @@ func main() {
 								fmt.Println("Variable local:", tok.Str)
 								if tok.Token == token.LPAREN {
 									// Declaracion simple
-									varList = Var_concat(varList, Var_simple_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
 									// Declaracion multiple
-									varList = Var_concat(varList, Var_multi_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
 								// An lbrace not associated with parallel
@@ -639,7 +679,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Saliendo de la funcion")
+									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -655,6 +695,13 @@ func main() {
 					tok = <-in
 					fmt.Println("Entrando en la funcion:", tok.Str)
 					if tok.Str == "main" { // Funcion "main".
+						for tok.Token != token.LPAREN {
+							passToken(tok, out, sync)
+							tok = <-in
+						}
+						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
+						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
 							tok = <-in
@@ -669,7 +716,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)
@@ -677,10 +724,10 @@ func main() {
 								fmt.Println("Variable local:", tok.Str)
 								if tok.Token == token.LPAREN {
 									// Declaracion simple
-									varList = Var_concat(varList, Var_simple_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
 									// Declaracion multiple
-									varList = Var_concat(varList, Var_multi_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
 								// An lbrace not associated with parallel
@@ -693,7 +740,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Saliendo de la funcion")
+									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -704,6 +751,13 @@ func main() {
 						}
 						continue
 					} else { // Otra funcion.
+						for tok.Token != token.LPAREN {
+							passToken(tok, out, sync)
+							tok = <-in
+						}
+						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
+						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
 							tok = <-in
@@ -716,7 +770,7 @@ func main() {
 							tok = <-in
 							switch {
 							case isPragma(tok): // Reconocedor de "pragma gomp"
-								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers)
+								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Tratamiento para declaración de variables.
 								num_dec++ // Numero de declaraciones de variables (para testeo).
 								passToken(tok, out, sync)
@@ -724,10 +778,10 @@ func main() {
 								fmt.Println("Variable local:", tok.Str)
 								if tok.Token == token.LPAREN {
 									// Declaracion simple
-									varList = Var_concat(varList, Var_simple_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
 									// Declaracion multiple
-									varList = Var_concat(varList, Var_multi_processor(tok, in, out, sync))
+									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
 								// An lbrace not associated with parallel
@@ -740,7 +794,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Saliendo de la funcion")
+									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -759,11 +813,11 @@ func main() {
 			fmt.Println("Variable global:", tok.Str)
 			if tok.Token == token.LPAREN {
 				// Declaracion simple
-				varList = Var_concat(varList, Var_simple_processor(tok, in, out, sync))
+				varGlobalList = Var_concat(varGlobalList, Var_simple_processor(tok, in, out, sync))
 				continue
 			} else {
 				// Declaracion multiple
-				varList = Var_concat(varList, Var_multi_processor(tok, in, out, sync))
+				varGlobalList = Var_concat(varGlobalList, Var_multi_processor(tok, in, out, sync))
 				continue
 			}
 			default: // Ignore
@@ -776,5 +830,5 @@ func main() {
 
 	PipeEnd(p, os.Stdout)
 	fmt.Println("Numero de declaraciones en el código: ", num_dec, "\n")
-	fmt.Println("Lista de variables declaradas en el código: ", varList, "\n")
+	fmt.Println("Lista de variables declaradas en el código: ", varGlobalList, "\n")
 }

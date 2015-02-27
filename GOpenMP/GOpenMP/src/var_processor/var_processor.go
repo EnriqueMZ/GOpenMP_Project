@@ -1,21 +1,19 @@
 /*
- =================================================================================
+ ================================================================================================
  Name        : for_parallel_processor.go
  Author      : Enrique Madridejos Zamorano
  Version     :
  Copyright   : Apache Licence Version 2.0
- Description : Módulo para tratamiento de declaraciones de variables.
- 			   NOTA IMPORTANTE: Sólo admite variables declaradas IMPLÍCITAMENTE. 
- =================================================================================
- */
+ Description : Módulo para tratamiento de declaraciones de variables y argumentos de funciones.
+ 			   NOTA IMPORTANTE: Sólo admite variables declaradas IMPLÍCITAMENTE.
+ ================================================================================================
+*/
 
 package var_processor
 
 import (
-	//"fmt"
 	"go/token"
 	. "goprep"
-
 )
 
 // Stack of bools, model with a slice.
@@ -40,6 +38,14 @@ type Variable struct { // Estructura para variables inicializadas
 	Ident string // Identificador
 	Type  string // Tipo
 	Ini   bool   // ¿Está inicializada?
+}
+
+// Funcion para concatenar slices de Variables
+func concat(a, b []Variable) []Variable {
+	for i := range b {
+		a = append(a, b[i])
+	}
+	return a
 }
 
 // Funciones para trabajo con tokens.
@@ -78,7 +84,7 @@ func interface_declare(tok Token, in chan Token, out chan string, sync chan inte
 	return str
 }
 
-// Funcion que trata la declaracion de un slice. 
+// Funcion que trata la declaracion de un slice.
 func slice_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "["
 	passToken(tok, out, sync)
@@ -215,7 +221,6 @@ func Var_simple_processor(tok Token, in chan Token, out chan string, sync chan i
 	var ini bool = false
 	var identList []string
 	var fin_paren bool = false
-
 	passToken(tok, out, sync)
 	for !fin_paren {
 		tok = <-in
@@ -354,4 +359,77 @@ func Var_multi_processor(tok Token, in chan Token, out chan string, sync chan in
 	ini = false
 	identList = nil
 	return listAux
+}
+
+// Funcion publica que almacena las variables de argumentos de funcion.
+func Var_argument_processor(tok Token, in chan Token, out chan string, sync chan interface{}, varLocalList []Variable) []Variable {
+	var tipe string = ""
+	var variable Variable
+	var fin_paren bool = false
+	passToken(tok, out, sync)
+	for !fin_paren {
+		tok = <-in
+		if tok.Token == token.RPAREN {
+			passToken(tok, out, sync)
+			break
+		} else {
+			variable.Ident = tok.Str
+			passToken(tok, out, sync)
+			finIn := false
+			for !finIn {
+				tok = <-in
+				switch tok.Token {
+				case token.IDENT:
+					tipe = tipe + tok.Str
+					passToken(tok, out, sync)
+				case token.MUL:
+					// Tratamiento de punteros
+					tipe = pointer_declare(tok, in, out, sync)
+				case token.INTERFACE:
+					// Tratamiento declaracion interface
+					tipe = interface_declare(tok, in, out, sync)
+				case token.LBRACK:
+					// Tratamiento declaracion slice
+					tipe = slice_declare(tok, in, out, sync)
+				case token.MAP:
+					// Tratamiento declaracion map
+					tipe = map_declare(tok, in, out, sync)
+				case token.STRUCT:
+					//tratamiento declaracion struct
+					tipe = struct_declare(tok, in, out, sync)
+				case token.FUNC:
+					// Tratamiento declaracion funcion
+					tipe = func_declare(tok, in, out, sync)
+				case token.PERIOD:
+					// Tipos compuestos
+					tipe = tipe + tok.Str
+					passToken(tok, out, sync)
+				case token.CHAN:
+					// Tratamiento declaracion chan
+					tipe = tipe + tok.Str + " "
+					passToken(tok, out, sync)
+				case token.COMMA:
+					passToken(tok, out, sync)
+					finIn = true
+				case token.RPAREN:
+					finIn = true
+					fin_paren = true
+				}
+			}
+		}
+		if fin_paren {
+			variable.Type = tipe
+			variable.Ini = true
+			tipe = ""
+			varLocalList = append(varLocalList, variable)
+			passToken(tok, out, sync)
+			break
+		} else {
+			variable.Type = tipe
+			variable.Ini = true
+			tipe = ""
+			varLocalList = append(varLocalList, variable)
+		}
+	}
+	return varLocalList
 }

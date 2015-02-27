@@ -87,4 +87,3 @@ func main() {
 	fmt.Println("PRIME_OPENMP")
 	fmt.Println("  Normal end of execution.")
 }
-
