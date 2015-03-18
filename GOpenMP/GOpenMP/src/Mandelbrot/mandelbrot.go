@@ -1,143 +1,105 @@
+// Alberto Castaño
+
 package main
 
-import (	
+import (
+	"errors"
 	"flag"
-	"math"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
+	"image/color"
+	"image"
+	"log"
 	"os"
+	"path/filepath"
 	"runtime"
-	"fmt"
 )
-
-
 
 var (
-	output = flag.String("out", "mandelbrot_1.ppm", "name of the output image file")
-	height = flag.Int("h", 700, "height of the output image in pixels")
-	width  = flag.Int("w", 700, "width of the output image in pixels")
+	output	= flag.String("out", "mandelbrot_1.jpeg", "name of the output image file")
+	height	= flag.Int("h", 8192, "height of the output image in pixels")
+	width	= flag.Int("w", 8192, "width of the output image in pixels")
 )
 
-func Create(h, w int) ([][]int, [][]int, [][]int) {
-	
-	count := make([][]int, h)
-	for i := range count {
-		count[i] = make([]int, w)
+type img struct {
+	h, w	int
+	m	[][]color.RGBA
+}
+
+var _numCPUs = runtime.NumCPU()
+
+func _init_numCPUs() {
+	runtime.GOMAXPROCS(_numCPUs)
+}
+func (m *img) At(x, y int) color.Color	{ return m.m[x][y] }
+func (m *img) ColorModel() color.Model	{ return color.RGBAModel }
+func (m *img) Bounds() image.Rectangle	{ return image.Rect(0, 0, m.h, m.w) }
+func Create(h, w int) image.Image {
+	c := make([][]color.RGBA, h)
+	for i := range c {
+		c[i] = make([]color.RGBA, w)
 	}
-	
-	r := make([][]int, h)
-	for i := range r {
-		r[i] = make([]int, w)
-	}
-	
-	g := make([][]int, h)
-	for i := range g {
-		g[i] = make([]int, w)
-	}
-	
-	b := make([][]int, h)
-	for i := range b {
-		b[i] = make([]int, w)
-	}
-
-	var i int
-	var j int
-	var k int
-	var x float64
-	var x1 float64
-	var x2 float64
-	var y float64
-	var y1 float64
-	var y2 float64
-	const maxI int = 2000
-	var x_max float64 = 1.25
-	var x_min float64 = -2.25
-	var y_max float64 = 1.75
-	var y_min float64 = -1.75
-	var res int
-
-	//pragma gomp parallel for shared (count, maxI, x_max, x_min, y_max, y_min ) private ( i, j, k, x, x1, x2, y, y1, y2 )
-	for i = 0; i < w; i++ {
-		for j = 0; j < h; j++ {
-
-			x = (float64(j-1)*x_max + float64(w-j) + x_min) / float64(w-1)
-			y = (float64(i-1)*y_max + float64(h-i) + y_min) / float64(h-1)
-
-			count[i][j] = 0
-
-			x1 = x
-			y1 = y
-
-			for k = 1; k <= maxI; k++ {
-				x2 = x1 * x1 - y1 * y1 + x
-				y2 = 2 * x1 * y1 + y
-
-				if x2 < -2.0 || 2.0 < x2 || y2 < -2.0 || 2.0 < y2 {
-					count[i][j] = k
+	m := img{h, w, c}
+	var mm int = len(m.m)
+	var _barrier_0_bool = make(chan bool)
+	for _i := 0; _i < _numCPUs; _i++ {
+		go func(_routine_num int) {
+			var ()
+			for i := _routine_num + 0; i < (mm+0)/1; i += _numCPUs {
+				for j := 0; j < mm; j++ {
+					fillPixel(&m, i, j)
 				}
-				x1 = x2
-				y1 = y2
 			}
-			if (count[i][j] % 2) == 1 {
-				r[i][j] = 255
-        		g[i][j] = 255
-        		b[i][j] = 255				
-			} else {
-				res = int(255.0 * math.Sqrt(math.Sqrt(math.Sqrt( float64(count[i][j]) / float64(maxI) ))))
-				r[i][j] = 3 * res / 5;
-        		g[i][j] = 3 * res / 5;
-        		b[i][j] = res;
-			}
-
-		}
+			_barrier_0_bool <- true
+		}(_i)
 	}
-	return r, g, b
+	for _i := 0; _i < _numCPUs; _i++ {
+		<-_barrier_0_bool
+	}
+
+	return &m
 }
-
-func check(e error) {
-    if e != nil {
-        panic(e)
-    }
+func fillPixel(m *img, i, j int) {	// normalized from -2.5 to 1
+	xi := 3.5*float64(i)/float64(m.w) - 2.5
+	// normalized from -1 to 1
+	yi := 2*float64(j)/float64(m.h) - 1
+	const maxI = 1000
+	x, y := 0., 0.
+	for i := 0; (x*x+y*y < 4) && i < maxI; i++ {
+		x, y = x*x-y*y+xi, 2*x*y+yi
+	}
+	paint(&m.m[i][j], x, y)
 }
-
-func i4_min( i1 int, i2 int ) int {
-
-  var value int
-
-  if  i1 < i2 {
-    value = i1;
-  }else{
-    value = i2;
-  }
-  return value;
+func paint(c *color.RGBA, x, y float64) {
+	n := byte(x * y)
+	c.R, c.G, c.B, c.A = n, n, n, 255
 }
-
 func main() {
-	
-	var jhi int
-	
+	_init_numCPUs()
 	flag.Parse()
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	
-	//create the image
-	r, g ,b := Create(*height, *width)
-
 	// open a new file
 	f, err := os.Create(*output)
-	check(err)
-	
-	defer f.Close()
-	
-	fmt.Fprint(f, "P3\n")
-	fmt.Fprintf(f, "%d  %d\n", *height, *width )
-	fmt.Fprintf(f, "%d\n", 255 )
-	
-	for  i := 0; i < *height; i++ {
-    	for jlo := 0; jlo < *width; jlo = jlo + 4 {
-      	jhi = i4_min( jlo + 4, *width )
-      	for  j := jlo; j < jhi; j++ {
-        	fmt.Fprintf(f, "  %d  %d  %d", r[i][j], g[i][j], b[i][j])
-      	}
-      	fmt.Fprint(f, "\n")
-    	}
-    	
-  	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	// create the image
+	img := Create(*height, *width)
+	// and encoding it
+	fmt := filepath.Ext(*output)
+	switch fmt {
+	case ".png":
+		err = png.Encode(f, img)
+	case ".jpg", ".jpeg":
+		err = jpeg.Encode(f, img, nil)
+	case ".gif":
+		err = gif.Encode(f, img, nil)
+	default:
+		err = errors.New("unkwnown format " + fmt)
+	}
+	// unless you can't
+	if err != nil {
+		log.Fatal(err)
+	}
 }

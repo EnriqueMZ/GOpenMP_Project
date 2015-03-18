@@ -1,27 +1,54 @@
-package main 
+// Alberto Castaño
+
+package main
 
 import (
-	"fmt"
+	"os"
+	"strconv"
+	"math/rand"
 )
 
+import "runtime"
+
+var _numCPUs = runtime.NumCPU()
+
+func _init_numCPUs() {
+	runtime.GOMAXPROCS(_numCPUs)
+}
 func main() {
-	
-	var n int = 10;
-	var a float64 = 2;
-	x := []float64{1,2,3,4,5,6,7,8,9,10}
-	y := []float64{1,2,3,4,5,6,7,8,9,10}
-	
-	fmt.Println("Vector x antes del parallel:", x)
-	fmt.Println("Vector y antes del parallel:", y)
-	
-	//pragma gomp parallel for
-	
-	for i:= 0; i < n; i++ {
-		y[i] = a * x[i] + y[i]
-		}
-	
-	fmt.Println("Vector x despues del parallel:", x)
-	fmt.Println("Vector y despues del parallel:", y)
+	_init_numCPUs()
+	var n int
+	n, _ = strconv.Atoi(os.Args[1])
+	var a float64 = 2
+	x := make([]float64, n)
+	y := make([]float64, n)
+	var _barrier_0_bool = make(chan bool)
+	for _i := 0; _i < _numCPUs; _i++ {
+		go func(_routine_num int) {
+			var ()
+			for i := _routine_num + 0; i < (n+0)/1; i += _numCPUs {
+				x[i] = float64(rand.Int())
+				y[i] = float64(rand.Int())
+			}
+			_barrier_0_bool <- true
+		}(_i)
+	}
+	for _i := 0; _i < _numCPUs; _i++ {
+		<-_barrier_0_bool
+	}
+
+	var _barrier_1_bool = make(chan bool)
+	for _i := 0; _i < _numCPUs; _i++ {
+		go func(_routine_num int) {
+			var ()
+			for i := _routine_num + 0; i < (n+0)/1; i += _numCPUs {
+				y[i] = a*x[i] + y[i]
+			}
+			_barrier_1_bool <- true
+		}(_i)
+	}
+	for _i := 0; _i < _numCPUs; _i++ {
+		<-_barrier_1_bool
+	}
 
 }
-
