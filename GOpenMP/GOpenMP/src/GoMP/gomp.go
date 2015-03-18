@@ -546,7 +546,8 @@ func main() {
 	// Establecemos GOMAXPROCS
 	// _numCPUs := runtime.NumCPU()
 	// runtime.GOMAXPROCS(_numCPUs)
-	p := PipeInit(os.Stdin)
+	_fIn,_ := os.Open(os.Args[1]) 
+	p := PipeInit(_fIn)
 	//Lines(p) // Muestra las lineas
 	Link(func(in chan Token,
 		tOut chan Token,
@@ -827,8 +828,10 @@ func main() {
 		}
 		close(tOut)
 	})(p)
-
-	PipeEnd(p, os.Stdout)
+	
+	_fOut,_ := os.Create(os.Args[2])
+	PipeEnd(p, _fOut)
+	
 	fmt.Println("Numero de declaraciones en el código: ", num_dec, "\n")
 	fmt.Println("Lista de variables declaradas en el código: ", varGlobalList, "\n")
 }
