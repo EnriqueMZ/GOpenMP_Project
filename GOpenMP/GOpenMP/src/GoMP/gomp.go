@@ -271,7 +271,7 @@ func var_not_prev_declare(pragma Pragma, varGlobalList []Variable, varLocalList 
 			}
 		}
 	}
-	
+
 	return res, v
 }
 
@@ -425,7 +425,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		fmt.Println("Variables privadas en parallel for:", privateList)
 
 		// Lanzamiento de goroutines. Redeclaracion de variables
-		out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + var_dcls + "for " + var_indice + " " + assign + " _routine_num + " + ini + "; " + var_indice + " <" + iteraciones + "; "+ var_indice +" += _numCPUs {\n"
+		out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + var_dcls + "for " + var_indice + " " + assign + " _routine_num + " + ini + "; " + var_indice + " <" + iteraciones + "; " + var_indice + " += _numCPUs {\n"
 		sync <- nil
 
 		// init LBRACE
@@ -573,7 +573,7 @@ func main() {
 				var b bool
 				var s braceStack
 				var varLocalList []Variable // Lista de variables locales de una funcion.
-				if numFunc == 0 { // Es la primera funcion del código.
+				if numFunc == 0 {           // Es la primera funcion del código.
 					numFunc++
 					out <- "var _numCPUs = runtime.NumCPU()\n" + "func _init_numCPUs(){\n" + "runtime.GOMAXPROCS(_numCPUs)\n" + "}\n" + tok.Str
 					sync <- nil
@@ -635,7 +635,7 @@ func main() {
 							}
 						}
 						continue
-					} else { // La primera funcion no es un "main".						
+					} else { // La primera funcion no es un "main".
 						for tok.Token != token.LPAREN {
 							passToken(tok, out, sync)
 							tok = <-in
@@ -807,19 +807,19 @@ func main() {
 					}
 				}
 			case tok.Str == "var": // Tratamiento para declaración de variables.
-			num_dec++ // Numero de declaraciones de variables (para testeo).
-			passToken(tok, out, sync)
-			tok = <-in
-			fmt.Println("Variable global:", tok.Str)
-			if tok.Token == token.LPAREN {
-				// Declaracion simple
-				varGlobalList = Var_concat(varGlobalList, Var_simple_processor(tok, in, out, sync))
-				continue
-			} else {
-				// Declaracion multiple
-				varGlobalList = Var_concat(varGlobalList, Var_multi_processor(tok, in, out, sync))
-				continue
-			}
+				num_dec++ // Numero de declaraciones de variables (para testeo).
+				passToken(tok, out, sync)
+				tok = <-in
+				fmt.Println("Variable global:", tok.Str)
+				if tok.Token == token.LPAREN {
+					// Declaracion simple
+					varGlobalList = Var_concat(varGlobalList, Var_simple_processor(tok, in, out, sync))
+					continue
+				} else {
+					// Declaracion multiple
+					varGlobalList = Var_concat(varGlobalList, Var_multi_processor(tok, in, out, sync))
+					continue
+				}
 			default: // Ignore
 				passToken(tok, out, sync)
 				continue

@@ -47,7 +47,7 @@ func logic_operator(tok Token) (bool, string) {
 	return err, inc
 }
 
-// Función para obtener el tipo de una variable marcada como reduction. Error si no se ha inicializado previamente.
+// Función para obtener el tipo de una variable. Error si no se ha inicializado previamente.
 func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) string {
 	var typ string = "error"
 	for i := range varGlobalList {
@@ -63,7 +63,7 @@ func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) st
 		}
 	}
 	if typ == "error" {
-		panic("Variable " + id + " en clausula reduction no declarada previamente")
+		panic("Variable " + id + " no declarada previamente")
 	}
 	return typ
 }

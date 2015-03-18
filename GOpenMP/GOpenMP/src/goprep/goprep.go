@@ -63,7 +63,8 @@ func PipeInit(iReader io.Reader) *Pipe {
 				str = tok.String()
 			}
 			if tok == token.COMMENT && !(isPragmaGomp(str)) { // Modificado para controlar GoMP
-				str = str + " estoy toqueteando comentarios\n" // Comprobador de cambios
+				//str = str + " estoy toqueteando comentarios\n" // Comprobador de cambios
+				str = str + "\n"
 			}
 			input <- Token{fset.Position(pos), tok, str}
 			<-sync // wait for sent token to land
