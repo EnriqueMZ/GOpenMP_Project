@@ -419,16 +419,16 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		iterations, ini, var_index, assign, tok = For_parallel_declare(tok, in, out, sync, varGlobalList, varLocalList)
 		fmt.Println("Parallelized loop iterations:", iterations)
 
-		// VARIABLES PRIVATE
+		// PRIVATE VARIABLES
 		privateList := declareList(pragma, varGlobalList, varLocalList)
-		fmt.Println("Variables privadas en parallel for:", privateList)
+		fmt.Println("Private variables in Parallel For pragma:", privateList)
 
-		// Lanzamiento de goroutines. Redeclaracion de variables
+		// Goroutines start. Varibles re-declatations.
 		out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + var_dcls + "for " + var_index + " " + assign + " _routine_num + " + ini + "; " + var_index + " <" + iterations + "; " + var_index + " += _numCPUs {\n"
 		sync <- nil
 
 		// init LBRACE
-		s.Push(true) // Llave de apertura de bloque Parallel For
+		s.Push(true) // Init brace in Parallel For block.
 		endParallelFor := false
 
 		for !endParallelFor {
@@ -449,9 +449,6 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 					// An rbrace not associated with parallel
 					passToken(tok, out, sync)
 				}
-			//case tok.Str == var_indice: // Variable indice del bucle
-			//out <- "_i"
-			//sync <- nil
 			case tok.Str == "Gomp_get_routine_num":
 				subs_Gomp_get_routine_num(in, out, sync)
 			case tok.Str == "Gomp_set_num_routines":
@@ -461,46 +458,46 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 				passToken(tok, out, sync)
 			}
 		}
-	case 2: // PRAGMA FOR
+	case 2: // FOR PRAGMA
 		var b bool
 		var s braceStack
-		var iteraciones string = "0" // Iteraciones del bucle paralelizado. Sólo para testeo.
+		var iterations string = "0" // Parallelized loop iterations. Test only.
 
-		// Comprobar clausula default
+		// Check Default clause
 		if pragma.Default == NONE {
 			def_cond, def_var := var_not_prev_declare(pragma, varGlobalList, varLocalList)
 			if def_cond {
-				panic("Error: variable " + def_var + " no declarada previamente")
+				panic("Error: Variable \"" + def_var + "\" not previously initialized.")
 			}
 		}
 
 		/*
-			// VARIABLES REDUCTION
+			// REDUCTION VARIABLES
 			dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varList)
 			numBarriers = numB
 
-			out <- dcls // Cambia el pragma por la declaracion de canales
+			out <- dcls
 			sync <- nil
 		*/
 
-		eliminateToken(out, sync) // Eliminamos el pragma
+		eliminateToken(out, sync) // Remove pragma from code
 
-		tok = <-in // Token "for"
-		fmt.Println("Variables declaradas antes del parallel for:", varGlobalList, varLocalList)
+		tok = <-in // "for" token
+		fmt.Println("Variables declared before For block:", varGlobalList, varLocalList)
 		tok = For_declare(tok, in, out, sync, varGlobalList, varLocalList, routine_num, for_threads)
-		fmt.Println("Iteraciones del bucle paralelo:", iteraciones)
+		fmt.Println("Parallelized loop iterations:", iterations)
 
-		// VARIABLES PRIVATE
+		// PRIVATE VARIABLES
 		privateList := declareList(pragma, varGlobalList, varLocalList)
-		fmt.Println("Variables privadas en pragma for:", privateList)
+		fmt.Println("Private variables in For pragma:", privateList)
 
-		// Lanzamiento de goroutines. Redeclaracion de variables
+		// Goroutines start. Varibles re-declatations.
 		//out <- tok.Str + "\n" + "var (" + privateList + ") \n" + var_dcls + "for _i := _routine_num; _i <" + iteraciones + "; _i += _numCPUs {\n"
 		out <- tok.Str + "\n" + "var (" + privateList + ") \n"
 		sync <- nil
 
 		// init LBRACE
-		s.Push(true) // Llave de apertura de bloque For
+		s.Push(true) // Init brace in For block.
 		endFor := false
 
 		for !endFor {
@@ -521,9 +518,6 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 					// An rbrace not associated with parallel
 					passToken(tok, out, sync)
 				}
-			//case tok.Str == var_indice: // Variable indice del bucle
-			//out <- "_i"
-			//sync <- nil
 			case tok.Str == "Gomp_get_routine_num":
 				subs_Gomp_get_routine_num(in, out, sync)
 			case tok.Str == "Gomp_set_num_routines":
@@ -533,85 +527,79 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 				passToken(tok, out, sync)
 			}
 		}
-	case 3: // PRAGMA THREADPRIVATE
+	case 3: // THREADPRIVATE PRAGMA
 		eliminateToken(out, sync)
-		// TO DO: Resto de tratamiento de pragmas
+		// TO DO: Rest of pragma treatment
 	}
 	return num_prag, numBarriers
 }
 
-// Programa principal.
+// MAIN PROGRAM.
 func main() {
-	// Establecemos GOMAXPROCS
-	// _numCPUs := runtime.NumCPU()
-	// runtime.GOMAXPROCS(_numCPUs)
 	_fIn,_ := os.Open(os.Args[1]) 
 	p := PipeInit(_fIn)
-	//Lines(p) // Muestra las lineas
+	//Lines(p) // Show pre-processor lines
 	Link(func(in chan Token,
 		tOut chan Token,
 		out chan string,
 		sync chan interface{}) {
-		var numFunc int = 0          // Inicializa el numero de funciones del código original.
-		var numBarriers int = 0      // Inicializa el número de barreras
-		var in_parallel bool = false // Dentro de una region variable
-		var routine_num string = "0" // String con el identificador de rutina
-		//var default_threads string = "_numCPUs" // String con el numero de hilos por defecto.
-		var for_threads = "1" // String con los hilos de un bucle for
-		//var numParallel int = 0 				// Inicializa el numero de regiones paralelas
-		//var tipe, bar string = "", ""
-		//var ini bool = false
+		var numFunc int = 0          // Initializes function counter of the original code.
+		var numBarriers int = 0      // Inicializes barrier counter.
+		var in_parallel bool = false // Inside parallel block?
+		var routine_num string = "0" // Goroutine ID string
+		var for_threads = "1" 		 // String with for-loop thread number.
+		
 		for tok := range in {
 
-			switch { // Tratamiento de Tokens
+			switch { // Token treatment
 
-			case tok.Token == token.IMPORT: // Tratamiento de import.
+			case tok.Token == token.IMPORT: // Import treatment
 				Imports_declare(tok, in, out, sync)
 				continue
 
-			case tok.Token == token.FUNC: // Tratamiento de _numCPUs
+			case tok.Token == token.FUNC:   // Variable _numCPUs treatment
 				var b bool
 				var s braceStack
-				var varLocalList []Variable // Lista de variables locales de una funcion.
-				if numFunc == 0 {           // Es la primera funcion del código.
+				var varLocalList []Variable // Local variable list of a function.
+				if numFunc == 0 {           // First function declare in the original code.
 					numFunc++
 					out <- "var _numCPUs = runtime.NumCPU()\n" + "func _init_numCPUs(){\n" + "runtime.GOMAXPROCS(_numCPUs)\n" + "}\n" + tok.Str
 					sync <- nil
 					tok = <-in
-					fmt.Println("Entrando en la primera funcion:", tok.Str)
-					if tok.Str == "main" { // La primera funcion es "main".
+					fmt.Println("Now entering the first function:", tok.Str)
+					if tok.Str == "main" { // First function is the "main" funtion.
 						for tok.Token != token.LPAREN {
 							passToken(tok, out, sync)
 							tok = <-in
 						}
 						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
-						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						fmt.Println("Argument list of the function:", varLocalList)
 						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
 							tok = <-in
 						}
-						// Inicializa el numero de CPUs
+						// Initializes number of CPUs
 						out <- tok.Str + "\n" + "_init_numCPUs()\n"
 						sync <- nil
 						// init LBRACE
-						s.Push(true) // Llave de apertura de la funcion
+						s.Push(true) // Init brace in function.
 						endFunc := false
 						for !endFunc {
 							tok = <-in
 							switch {
-							case isPragma(tok): // Reconocedor de "pragma gomp"
+							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
-							case tok.Str == "var": // Tratamiento para declaración de variables.
-								num_dec++ // Numero de declaraciones de variables (para testeo).
+							case tok.Str == "var": // Variable declaration treatment
+								num_dec++ 		   // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
-								fmt.Println("Variable local:", tok.Str)
+								fmt.Println("Local variable:", tok.Str)
 								if tok.Token == token.LPAREN {
-									// Declaracion simple
+									// Simple declaration
 									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
-									// Declaracion multiple
+									// Multiple declaration
 									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
@@ -625,7 +613,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
+									fmt.Println("Variable list declared in this function: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -635,13 +623,13 @@ func main() {
 							}
 						}
 						continue
-					} else { // La primera funcion no es un "main".
+					} else { // First function is not the "main" funtion.
 						for tok.Token != token.LPAREN {
 							passToken(tok, out, sync)
 							tok = <-in
 						}
 						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
-						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						fmt.Println("Argument list of the function:", varLocalList)
 						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
@@ -649,23 +637,23 @@ func main() {
 						}
 						passToken(tok, out, sync)
 						// init LBRACE
-						s.Push(true) // Llave de apertura de la funcion
+						s.Push(true) // Init brace in function.
 						endFunc := false
 						for !endFunc {
 							tok = <-in
 							switch {
-							case isPragma(tok): // Reconocedor de "pragma gomp"
+							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
-							case tok.Str == "var": // Tratamiento para declaración de variables.
-								num_dec++ // Numero de declaraciones de variables (para testeo).
+							case tok.Str == "var": // Variable declaration treatment
+								num_dec++ 		   // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
-								fmt.Println("Variable local:", tok.Str)
+								fmt.Println("Local variable:", tok.Str)
 								if tok.Token == token.LPAREN {
-									// Declaracion simple
+									// Simple declaration
 									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
-									// Declaracion multiple
+									// Multiple declaration
 									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
@@ -679,7 +667,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
+									fmt.Println("Variable list declared in this function: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -690,43 +678,43 @@ func main() {
 						}
 						continue
 					}
-				} else { // No es la primera funcion del código.
+				} else { // Not first function declare in the original code.
 					passToken(tok, out, sync)
 					tok = <-in
-					fmt.Println("Entrando en la funcion:", tok.Str)
-					if tok.Str == "main" { // Funcion "main".
+					fmt.Println("Now entering the function:", tok.Str)
+					if tok.Str == "main" { // "main" function.
 						for tok.Token != token.LPAREN {
 							passToken(tok, out, sync)
 							tok = <-in
 						}
 						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
-						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						fmt.Println("Argument list of the function:", varLocalList)
 						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
 							tok = <-in
 						}
-						// Inicializa el numero de CPUs
+						// Initializes number of CPUs
 						out <- tok.Str + "\n" + "_init_numCPUs()\n"
 						sync <- nil
 						// init LBRACE
-						s.Push(true) // Llave de apertura de la funcion
+						s.Push(true) // Init brace in function.
 						endFunc := false
 						for !endFunc {
 							tok = <-in
 							switch {
-							case isPragma(tok): // Reconocedor de "pragma gomp"
+							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
-							case tok.Str == "var": // Tratamiento para declaración de variables.
-								num_dec++ // Numero de declaraciones de variables (para testeo).
+							case tok.Str == "var": // Variable declaration treatment
+								num_dec++ 		   // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
-								fmt.Println("Variable local:", tok.Str)
+								fmt.Println("Local variable:", tok.Str)
 								if tok.Token == token.LPAREN {
-									// Declaracion simple
+									// Simple declaration
 									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
-									// Declaracion multiple
+									// Multiple declaration
 									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
@@ -740,7 +728,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
+									fmt.Println("Variable list declared in this function: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -750,13 +738,13 @@ func main() {
 							}
 						}
 						continue
-					} else { // Otra funcion.
+					} else { // Another function
 						for tok.Token != token.LPAREN {
 							passToken(tok, out, sync)
 							tok = <-in
 						}
 						varLocalList = Var_argument_processor(tok, in, out, sync, varLocalList)
-						fmt.Println("Lista de argumentos de la funcion:", varLocalList)
+						fmt.Println("Argument list of the function:", varLocalList)
 						tok = <-in
 						for tok.Token != token.LBRACE {
 							passToken(tok, out, sync)
@@ -764,23 +752,23 @@ func main() {
 						}
 						passToken(tok, out, sync)
 						// init LBRACE
-						s.Push(true) // Llave de apertura de la funcion
+						s.Push(true) // Init brace in function
 						endFunc := false
 						for !endFunc {
 							tok = <-in
 							switch {
-							case isPragma(tok): // Reconocedor de "pragma gomp"
+							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
-							case tok.Str == "var": // Tratamiento para declaración de variables.
-								num_dec++ // Numero de declaraciones de variables (para testeo).
+							case tok.Str == "var": // Variable declaration treatment
+								num_dec++ 		   // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
-								fmt.Println("Variable local:", tok.Str)
+								fmt.Println("Local variable:", tok.Str)
 								if tok.Token == token.LPAREN {
-									// Declaracion simple
+									// Simple declaration
 									varLocalList = Var_concat(varLocalList, Var_simple_processor(tok, in, out, sync))
 								} else {
-									// Declaracion multiple
+									// Multiple declaration
 									varLocalList = Var_concat(varLocalList, Var_multi_processor(tok, in, out, sync))
 								}
 							case tok.Token == token.LBRACE:
@@ -794,7 +782,7 @@ func main() {
 									out <- tok.Str
 									sync <- nil
 									endFunc = true
-									fmt.Println("Lista de variables declaradas en esta funcion: ", varLocalList, "\n")
+									fmt.Println("Variable list declared in this function: ", varLocalList, "\n")
 								} else {
 									// An rbrace not associated with parallel
 									passToken(tok, out, sync)
@@ -806,17 +794,17 @@ func main() {
 						continue
 					}
 				}
-			case tok.Str == "var": // Tratamiento para declaración de variables.
-				num_dec++ // Numero de declaraciones de variables (para testeo).
+			case tok.Str == "var": // Variable declaration treatment
+				num_dec++ 		   // Variable declaration counter (test only)
 				passToken(tok, out, sync)
 				tok = <-in
-				fmt.Println("Variable global:", tok.Str)
+				fmt.Println("Global variable:", tok.Str)
 				if tok.Token == token.LPAREN {
-					// Declaracion simple
+					// Simple declaration
 					varGlobalList = Var_concat(varGlobalList, Var_simple_processor(tok, in, out, sync))
 					continue
 				} else {
-					// Declaracion multiple
+					// Multiple declaration
 					varGlobalList = Var_concat(varGlobalList, Var_multi_processor(tok, in, out, sync))
 					continue
 				}
@@ -831,6 +819,6 @@ func main() {
 	_fOut,_ := os.Create(os.Args[2])
 	PipeEnd(p, _fOut)
 	
-	fmt.Println("Numero de declaraciones en el código: ", num_dec, "\n")
-	fmt.Println("Lista de variables declaradas en el código: ", varGlobalList, "\n")
+	fmt.Println("Number of variable declarations in original code: ", num_dec, "\n")
+	fmt.Println("Variable declared list in original code: ", varGlobalList, "\n")
 }
