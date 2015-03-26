@@ -4,7 +4,7 @@
  Author      : Enrique Madridejos Zamorano
  Version     :
  Copyright   : Apache Licence Version 2.0
- Description : Módulo para tratamiento de las expresiones "pragma gomp" del codigo original
+ Description : Module that handles "pragma gomp" expresions from the original code.
  ============================================================================================
  */
 
@@ -15,13 +15,17 @@ import (
 	"strings"
 	"unicode/utf8"
 )
+// ==========================================================================================
+// Private functions
+// ==========================================================================================
 
-// Funciones privadas
-
-// function explode splits s into an array of UTF-8 sequences,
-// one per Unicode character (still strings) up to a maximum of n (n < 0 means no limit).
-// Invalid UTF-8 sequences become correct encodings of U+FFF8.
-// Import from golang source (all rights reserved)
+/*	
+	Function explode splits s into an array of UTF-8 sequences,
+	one per Unicode character (still strings) up to a maximum of n (n < 0 means no limit).
+	Invalid UTF-8 sequences become correct encodings of U+FFF8.
+	
+	Import from golang source (all rights reserved)
+*/
 func explode(s string, n int) []string {
 	if n == 0 {
 		return nil
@@ -49,10 +53,12 @@ func explode(s string, n int) []string {
 	}
 	return a
 }
-
-// Generic split: splits after each instance of sep,
-// including sepSave bytes of sep in the subarrays.
-// Import from golang source (all rights reserved)
+/*
+	Generic split: splits after each instance of sep,
+	including sepSave bytes of sep in the subarrays.
+	
+	Import from golang source (all rights reserved)
+*/
 func genSplit(s, sep string, sepSave, n int) []string {
 	if n == 0 {
 		return nil
@@ -78,26 +84,27 @@ func genSplit(s, sep string, sepSave, n int) []string {
 	a[na] = s[start:]
 	return a[0 : na+1]
 }
-
-// Funcion que separa el primer elemento del string antes de un separador dado
-// Devuelve el elemento y la lista sin el.
+/*
+	Function that splits a string into different parts, separated by a given character.
+	Additionally, it separates the first element of the resulting slice.
+	Return the first element and the slice.
+*/
 func splitFirstBySep(s, sep string) (string, []string) {
 	return genSplit(s, sep, 0, 2)[0], genSplit(s, sep, 0, 2)[1:]
 }
 
-// Funcion que elimina los espacio en blanco dentro de un string dado.
+// Function that removes whitespaces within a string. 
 func noSpaces(str string) string {
 	return strings.Replace(str, " ", "", -1)
 }
 
-// Funcion que elimina las comas dentro de un string dado.
+// Function that removes commas within a string
 func noCommas(str string) string {
 	return strings.Replace(str, ",", "", -1)
 }
 
-// Funcion que busca elementos repetidos dentro de un slice de strings.
-// Devuelve el elemento repetido, si existe.
-
+// Function that searches repeated elements within a slice of strings.
+// Return the first elemento found repeted, if exists.
 func repeatIn(a []string) (bool, string) {
 	var res bool = false
 	var elem = ""
@@ -112,8 +119,9 @@ func repeatIn(a []string) (bool, string) {
 	return res, elem
 }
 
-// Funcion que busca elementos repetidos entre dos slices de strings.
-// Devuelve el elemento repetido, si existe.
+// Function that searches repeated elements between two slice of strings.
+// Return the first elemento found repeted, if exists.
+
 func repeat(a, b []string) (bool, string) {
 	var res bool = false
 	var rep string
@@ -128,7 +136,7 @@ func repeat(a, b []string) (bool, string) {
 	return res, rep
 }
 
-// Funcion que concatena dos slices de strings.
+// Function that concatenates two slices of strings.
 func concat(a, b []string) []string {
 	for i := range b {
 		a = append(a, b[i])
@@ -136,7 +144,9 @@ func concat(a, b []string) []string {
 	return a
 }
 
-// Tipos para pragmas
+// ==========================================================================================
+
+// Pragma types
 
 type Pragma_Type int
 
@@ -145,7 +155,7 @@ const (
 	PARALLEL_FOR
 	FOR
 	THREADPRIVATE
-	// Añadir conforme sea necesario
+	// Add as needed
 )
 
 type Clause_Type int
@@ -164,15 +174,15 @@ const (
 	COLLAPSE
 	ORDERED
 	NOWAIT
-	// Añadir conforme sea necesario
+	// Add as needed
 )
 
 type Spec interface {
-	// Spec puede ser *ListSpec, *DefaultSpec, *EscalarSpec, *ReductionSpec
+	// Spec can be *ListSpec, *DefaultSpec, *EscalarSpec, *ReductionSpec
 }
 
 type ListSpec struct {
-	Variables []string // Listas de variables
+	Variables []string // Variables list
 }
 
 type Default_Type int
@@ -204,8 +214,8 @@ const (
 )
 
 type Reduction_Type struct {
-	Operator  Red_Operator //Operador
-	Variables []string     //Variables afectadas por el operador
+	Operator  Red_Operator // Operator
+	Variables []string     // Variables which affect the operator
 }
 
 type Clause struct {
@@ -214,36 +224,36 @@ type Clause struct {
 }
 
 type Pragma struct {
-	Type            Pragma_Type // Tipo del pragma
+	Type            Pragma_Type 	// Pragma type
 	Default         Default_Type
-	Def_Num_threads int // Numero de hilos por defecto.
+	Def_Num_threads int 			// Number of threads by default (goroutines)
 	Num_threads     string
 	If_content      string
-	Variable_List   []string // Lista completa de variables (para búsquedas)
+	Variable_List   []string 		// Complete list of variables within the pragma (for searching)
 	Shared_List     []string
 	Private_List    []string
 	First_List      []string
 	Last_List       []string
 	Copyin_List     []string
 	Reduction_List  []Reduction_Type
-	// Añadir campos conforme sea necesario
+	// Add as needed
 }
 
-// Grupos de clausulas validas para cada tipo de Pragma
+// Group clauses valid for each type of pragma
 var (
 	parallelClauses    = []string{"if", "num_threads", "default", "shared", "private", "firstprivate", "copyin", "reduction"}
 	parallForClauses   = []string{"if", "num_threads", "default", "shared", "private", "firstprivate", "copyin", "reduction", "lastprivate", "schedule", "collapse", "ordered"}
 	forClauses         = []string{"private", "firstprivate", "lastprivate", "reduction", "schedule", "collapse", "ordered", "nowait"}
 	thPrivateClauses   = []string{""}
 	reductionOperators = []string{"+", "*", "-", "&", "|", "^", "&&", "||"}
-	//  Añadir cuando sea necesario
+	// Add as needed
 )
 
-// Función que identifica un pragma gomp
-// Además, devuelve el contenido del pragma
+// Function that identifies a pragma gomp.
+// Additionaly, it returns pragma content.
 func isPragmaGomp(pragma string) (bool, []string) {
 	var res bool = true
-	pragmaAux := strings.TrimSpace(pragma) // Elimina los espacios en blanco al principio y al final del pragma.
+	pragmaAux := strings.TrimSpace(pragma) // Removes whitespaces at the beginning and the end of the pragma.
 	prag, auxList := splitFirstBySep(pragmaAux, " ")
 	aux := strings.TrimSpace(auxList[0])
 	gomp, list := splitFirstBySep(aux, " ")
@@ -253,8 +263,11 @@ func isPragmaGomp(pragma string) (bool, []string) {
 	return res, list
 }
 
-// Funcion que identifica el tipo de pragma en el cuerpo de un pragma
-// Además, devuelve el string con las clausulas. Lanza "panic" si el tipo no es correcto.
+/*
+	Function that identifies and return the type of pragma from pragma's body.
+	Additionally, it returns a slices containing clauses from the pragma. 
+	Launch "panic" if the type is incorrect.
+*/
 func pragmaType(body string) (Pragma_Type, []string) {
 	var typID Pragma_Type = -1
 	var res []string
@@ -278,15 +291,15 @@ func pragmaType(body string) (Pragma_Type, []string) {
 		typID = 2
 	case "threadprivate":
 		typID = 3
-	// Añadir casos cuando vaya siendo necesario
+	// Add cases as needed
 	default:
-		panic("Error: Tipo de Pragma Gomp incorrecto")
+		panic("Error: Pragma_Gomp type incorrect")
 	}
 	return typID, res
 }
 
-// Funcion que comprueba si una clausula pertenece a una lista dada (es valida para esa lista)
-// Obvia los espacios en blanco que pueda tener la clausula
+// Function that checks whether a clause belongs to a given list (it is valid for that list).
+// Ignore whitespaces within the clause.
 func validClause(clause string, group []string) bool {
 	var res bool = false
 	for i := range group {
@@ -298,8 +311,8 @@ func validClause(clause string, group []string) bool {
 	return res
 }
 
-// Funcion que clasifica las clausulas en funcion de su string.
-func clauseType(clause string) Clause_Type { // ¿REDUNDANTE?
+// Sorting function clauses, according to its string.
+func clauseType(clause string) Clause_Type { // Perhaps redundant?
 	var typ Clause_Type
 	switch clause {
 	case "default":
@@ -329,15 +342,15 @@ func clauseType(clause string) Clause_Type { // ¿REDUNDANTE?
 	case "nowait":
 		typ = 12
 	default:
-		typ = 13 // Clausula lista
-		// Añadir cuando sea necesario
+		typ = 13 // List clause
+		// Add as needed
 	}
 	return typ
 }
 
 func splitClauses(prgTyp Pragma_Type, clauses string) (Clause_Type, string, []string) {
 	var group []string
-	switch prgTyp { // Determina el grupo de clausulas correspondiente al Pragma_Type
+	switch prgTyp { // Determines the corresponding clauses group.
 	case 0:
 		group = parallelClauses
 	case 1:
@@ -351,23 +364,23 @@ func splitClauses(prgTyp Pragma_Type, clauses string) (Clause_Type, string, []st
 	clauseAux := noSpaces(clauseAll)
 	clause := noCommas(clauseAux)
 	if !validClause(clause, group) {
-		panic("Error: Clausula no valida para este pragma")
+		panic("Error: Invalidad clause \"" + clause + "\" inside this pragma")
 	}
 	return clauseType(clause), clause, res
 }
 
-// Funciones para contenido de clausulas
+// Functions for clauses content.
 
 func clauseContentList(body string) ([]string, []string) {
 	contAll, res := splitFirstBySep(body, ")")
 	contS := noSpaces(contAll)
 	cont := strings.Split(contS, ",")
 	if cont[0] == "" {
-		panic("No se han especificado variables en la clausula")
+		panic("No specified variables inside the clause")
 	}
 	rep, elem := repeatIn(cont)
 	if rep {
-		panic("Variable \"" + elem + "\" repetida en lista de datos")
+		panic("Variable \"" + elem + "\" repeated in clause content")
 	}
 	return cont, res
 }
@@ -382,7 +395,7 @@ func clauseContentDef(body string) (Default_Type, []string) {
 	case "none":
 		typ = 1
 	default:
-		panic("Error: argumento no valido en clausula default")
+		panic("Error: Invalid argument \"" + cont + "\" in clause Default")
 	}
 	return typ, res
 }
@@ -423,7 +436,7 @@ func operatorType(op string) Red_Operator {
 	case "||":
 		typ = 7
 	default:
-		panic("Error: operador no valido en clausula reduction")
+		panic("Error: Invalid operator \"" + op + "\" in clause Reduction")
 	}
 	return typ
 }
@@ -434,7 +447,7 @@ func clauseContentRed(body string) (Red_Operator, []string, []string) {
 	cont := noSpaces(contAll)
 	op, listAux := splitFirstBySep(cont, ":")
 	if !validOperator(op) {
-		panic("Error: operador no valido en clausula reduction")
+		panic("Error: Invalid operator \"" + op + "\" in clause Reduction")
 	}
 	typOp = operatorType(op)
 	list := strings.Split(listAux[0], ",")
@@ -455,11 +468,11 @@ func ProcessPragma(pragma string) Pragma {
 	)
 	cond, body := isPragmaGomp(pragma)
 	if !cond {
-		panic("Error: no es un pragma gomp\n")
+		panic("Error: Not a pragma gomp\n")
 	}
 	prgTyp, clauseList = pragmaType(body[0])
 	PragmaProcesed.Type = prgTyp
-	switch prgTyp { // Inicializador de pragmas
+	switch prgTyp { // Pragma initializer
 	case 0:
 		PragmaProcesed.Default = SHA
 		PragmaProcesed.Def_Num_threads = runtime.NumCPU()
@@ -490,32 +503,32 @@ func ProcessPragma(pragma string) Pragma {
 	case 3:
 		PragmaProcesed.Variable_List = variableList
 	default:
-		panic("Tipo de pragma aun no reconocido. En proceso.")
-		//TO DO: añadir pragmas cuando sea necesario.
+		panic("Pragma type still not recognized by the program. In process...")
+		//TO DO: // Add remaining pragmas
 	}
 	for {
-		if len(clauseList) == 0 || clauseList[0] == "" { // Si no hay clausulas, o ya se ha procesado el string de clausulas.
+		if len(clauseList) == 0 || clauseList[0] == "" { // No clauses, or already finished processing the string of clauses.
 			break
 		}
 		clauseType, _, clauseList = splitClauses(prgTyp, clauseList[0])
 		switch clauseType {
 		case 0: // DEFAULT
 			if oneDefault == true {
-				panic("Error: no pueden declararse varias clausulas default en un pragma")
+				panic("Error: Can not declare several additional Default clauses inside a pragma")
 			}
 			oneDefault = true
 			defTyp, clauseList = clauseContentDef(clauseList[0])
 			PragmaProcesed.Default = defTyp
 		case 1: // IF
 			if oneIf == true {
-				panic("Error: no pueden declararse varias clausulas if en un pragma")
+				panic("Error: Can not declare several additional If clauses inside a pragma")
 			}
 			oneIf = true
 			ifCont, clauseList = clauseContentStr(clauseList[0])
 			PragmaProcesed.If_content = ifCont
 		case 2: // NUM_THREADS
 			if oneNThreads == true {
-				panic("Error: no pueden declararse varias clausulas num_threads en un pragma")
+				panic("Error: Can not declare several additional Num_threads clauses inside a pragma")
 			}
 			oneNThreads = true
 			nThreadsCont, clauseList = clauseContentStr(clauseList[0])
@@ -524,7 +537,7 @@ func ProcessPragma(pragma string) Pragma {
 			contentList, clauseList = clauseContentList(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
-				panic("Error: la variable " + rep + " se encuentra repetida en varias clausulas de datos")
+				panic("Error: Variable \"" + rep + "\" is repeted in several clauses data")
 			}
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 			PragmaProcesed.Shared_List = concat(contentList, PragmaProcesed.Shared_List)
@@ -532,7 +545,7 @@ func ProcessPragma(pragma string) Pragma {
 			contentList, clauseList = clauseContentList(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
-				panic("Error: la variable \"" + rep + "\" se encuentra repetida en varias clausulas de datos")
+				panic("Error: Variable \"" + rep + "\" is repeted in several clauses data")
 			}
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 			PragmaProcesed.Private_List = concat(contentList, PragmaProcesed.Private_List)
@@ -540,38 +553,38 @@ func ProcessPragma(pragma string) Pragma {
 			contentList, clauseList = clauseContentList(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
-				panic("Error: la variable \"" + rep + "\" se encuentra repetida en varias clausulas de datos")
+				panic("Error: Variable \"" + rep + "\" is repeted in several clauses data")
 			}
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 			PragmaProcesed.First_List = concat(contentList, PragmaProcesed.First_List)
 		case 6: // COPYING
-			panic("Clausula copyin aun no implementada") // Hacer cuando enfrentemos directiva threadprivate
+			panic("Copyin clause not yet implemented") // To do along with Threadprivate pragma
 		case 7: // REDUCTION
 			operator, contentList, clauseList = clauseContentRed(clauseList[0])
 			res, rep := repeat(contentList, PragmaProcesed.Variable_List)
 			if res {
-				panic("Error: la variable \"" + rep + "\" se encuentra repetida en varias clausulas de datos")
+				panic("Error: Variable \"" + rep + "\" is repeted in several clauses data")
 			}
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 			var reductionClause Reduction_Type
 			reductionClause.Operator = operator
 			reductionClause.Variables = contentList
 			PragmaProcesed.Reduction_List = append(PragmaProcesed.Reduction_List, reductionClause)
-
-		//TODO Añadir resto de casos
-
+			
+		//TO DO: Add remaining cases
+		
 		case 13:
 			if prgTyp == 3 && oneThPrivate == true {
-				panic("Error: no puede declararse más de una lista en Threadprivate")
+				panic("Error: Can not declare more than one list in pragma Threadprivate")
 			}
 			oneThPrivate = true
 			contentList, clauseList = clauseContentList(clauseList[0])
 			PragmaProcesed.Variable_List = concat(contentList, PragmaProcesed.Variable_List)
 		default:
-			panic("En proceso...")
+			panic("In process...")
 		}
 	}
-	// TODO Añadir resto de casos
-
+	//TO DO: Add remaining cases
+	
 	return PragmaProcesed
 }

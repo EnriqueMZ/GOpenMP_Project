@@ -4,7 +4,7 @@
  Author      : Enrique Madridejos Zamorano
  Version     :
  Copyright   : Apache Licence Version 2.0
- Description : Módulo principal del preprocesador de texto GOpenMP
+ Description : Main GOpenMP pre-processor module
  ============================================================================
 */
 
@@ -49,39 +49,36 @@ func noSpaces(str string) string {
 	return strings.Replace(str, " ", "", -1)
 }
 
-// Check is a token is a "pragma gomp"
+// Check is a token is a "pragma gomp".
 func isPragma(token Token) bool {
 	res := strings.HasPrefix(noSpaces(token.Str), "//pragmagomp")
 	return res
 }
 
-// Numero de declaraciones de variables. Solo para testeo.
+// Number of variable declarations. Test only.
 var num_dec int = 0
 
-// Lista de variables declaradas.
+// Variable declarations list.
 var varGlobalList []Variable
 
-// Numero de pragmas. Solo para testeo.
+// Number of pragmas. Test only.
 var num_prag int = 0
 
-// Información del pragma.
-// var pragma Pragma
+// Private token work functions.
 
-// Funciones para trabajo con tokens.
-
-// Funcion que deja pasar un token.
+// Funtion that let a token pass.
 func passToken(tok Token, out chan string, sync chan interface{}) {
 	out <- tok.Str
 	sync <- nil
 }
 
-// Funcion que elimina un token.
+// Funtion that eliminate a token.
 func eliminateToken(out chan string, sync chan interface{}) {
 	out <- ""
 	sync <- nil
 }
 
-// Funcion barrier. Añade una barrera cuando sea necesario.
+// Barrier function. Add a barrier when necessary.
 func barrier(numParallel int) (string, int) {
 	if numParallel == 0 {
 		numParallel++
@@ -111,12 +108,12 @@ func stringOperator(op Red_Operator) string {
 	case 7:
 		str = "||"
 	default:
-		panic("Error: operador no valido en clausula reduction")
+		panic("Error: Invalid operator in redution clause.")
 	}
 	return str
 }
 
-// Funcion que construye una barrera para una variable reduction.
+// Function that constructs a barrier for a reduction variable.
 func barrier_variable(numBarrier int, variable string, typ string, opr string) (string, string, string, string) {
 	var num string = strconv.Itoa(numBarrier)
 	var name, dcl, send, var_dcl, rcv string
@@ -137,7 +134,8 @@ func barrier_variable(numBarrier int, variable string, typ string, opr string) (
 
 }
 
-// Función para obtener el tipo de una variable marcada como reduction. Error si no se ha inicializado previamente.
+// Function to retrive the type of a varible marked as "reduction" from the Variable list.
+// Launch panic if the the variable has not been previously initialized.
 func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) string {
 	var typ string = "error"
 	for i := range varGlobalList {
@@ -153,12 +151,12 @@ func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) st
 		}
 	}
 	if typ == "error" {
-		panic("Variable " + id + " en clausula reduction no declarada previamente")
+		panic("Variable \"" + id + "\" in reduction clause not previously initialized.")
 	}
 	return typ
 }
 
-// Función que construye barreras para todas la variables de una clausula reduction.
+// Function that constructs barriers for all variables in a reduction clause.
 func barrier_single_reduction(numBarrier int, clause Reduction_Type, varGlobalList []Variable, varLocalList []Variable) (string, string, string, string, int) {
 	var dcls, sends, var_dcls, rcvs string
 	var numB int = numBarrier
@@ -175,7 +173,7 @@ func barrier_single_reduction(numBarrier int, clause Reduction_Type, varGlobalLi
 	return dcls, sends, var_dcls, rcvs, numB
 }
 
-// Función que construye barreras para todas las variables de una lista de cluasulas reduction.
+// Function that constructs barriers for all variables in a reduction clauses list.
 func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varGlobalList []Variable, varLocalList []Variable) (string, string, string, string, int) {
 	var dcls, sends, var_dcls, rcvs string
 	if len(reductionList) == 0 {
@@ -198,24 +196,24 @@ func barrier_list_reduction(numBarrier int, reductionList []Reduction_Type, varG
 	return dcls, sends, var_dcls, rcvs, numBarrier
 }
 
-// Funcion routineNum. Trata el token Gomp_get_routine_num()
+// Funtion routineNum. It process token Gomp_get_routine_num()
 func subs_Gomp_get_routine_num(in chan Token, out chan string, sync chan interface{}) {
 	out <- "_routine_num"
 	sync <- nil
 	tok := <-in
-	// Parentesis. Esto quizá pueda eliminarse y dejar que el compiladro se encargue de indicar el error.
+	// Brackets. This can be eliminate, and leave the error treating to the compiler.
 	if tok.Token != token.LPAREN {
-		panic("Error Parentesis Izquierdo")
+		panic("Error: Left bracket lost in Gomp_get_routine_num.")
 	}
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token != token.RPAREN {
-		panic("Error Parentesis Derecho")
+		panic("Error: Right bracket lost in Gomp_get_routine_num.")
 	}
 	eliminateToken(out, sync)
 }
 
-// Funcion que ignora Gomp_set_num_routine() donde corresponda.
+// Function that ingnore Gomp_set_num_routine() where applicable.
 func ign_Gomp_set_num_routine(in chan Token, out chan string, sync chan interface{}) {
 	eliminateToken(out, sync)
 	fin := false
@@ -250,7 +248,7 @@ func notFound(a string, varList []Variable) (bool, string) {
 	return res, v
 }
 
-// Funcion que comprueba las variables de una clausula default(none) con las variables declaradas.
+// Function that compares variables from a "default(none)" clause with declared variables.
 func var_not_prev_declare(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) (bool, string) {
 	var res bool
 	var v string
@@ -271,11 +269,10 @@ func var_not_prev_declare(pragma Pragma, varGlobalList []Variable, varLocalList 
 			}
 		}
 	}
-
 	return res, v
 }
 
-func declare(ident string, varGlobalList []Variable, varLocalList []Variable) string { // WARNING: Puede necesitar correción.
+func declare(ident string, varGlobalList []Variable, varLocalList []Variable) string { // WARNING: May need correction.
 	var res string
 	var enc bool = false
 	for i := range varGlobalList {
@@ -301,12 +298,14 @@ func declare(ident string, varGlobalList []Variable, varLocalList []Variable) st
 		}
 	}
 	if !enc {
-		panic("Variable " + ident + " en clausula private no declarada previamente")
+		panic("Variable \"" + ident + "\" in private clause not previously initialized.")
 	}
 	return res
 }
 
-// Funcion que crea el string para re-inicializacion de variables private. WARNING: Variables declaradas de forma implicita!!!
+
+// Funcion that writes the string code for private variables re-initialization.
+// WARNING: Implicitly declared variables.
 func declareList(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) string {
 	var res string
 	if len(pragma.Private_List) == 0 {
@@ -320,31 +319,31 @@ func declareList(pragma Pragma, varGlobalList []Variable, varLocalList []Variabl
 	return res
 }
 
-// Funcion que reescribe el codigo si se trata de un pragma
+// Function that rewrites the code if it is a pragma.
 func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interface{}, num_prag int, in_parallel bool, routine_num string, for_threads string, numBarriers int, varLocalList []Variable) (int, int) {
 	num_prag++
-	fmt.Println("Numero de pragmas actual: ", num_prag, "\n")
-	fmt.Println("Pragma: ", tok.Str, "\n") // Recordar retirar los fmt.PrintLn
+	fmt.Println("Number of current pragmas: ", num_prag, "\n")
+	fmt.Println("Pragma: ", tok.Str, "\n")
 	pragma := ProcessPragma(tok.Str)
-	fmt.Println("Información del pragma: ", pragma, "\n")
+	fmt.Println("Pragma information: ", pragma, "\n")
 
-	switch pragma.Type { // Tratamiento de pragmas por tipo
-	case 0: // PRAGMA PARALLEL
+	switch pragma.Type { // Pragma type treatment
+	case 0: // PARALLEL PRAGMA
 		var b bool
 		var s braceStack
 		in_parallel = true
 		endParallel := false
-		routine_num = "_routine_num"     // String con el identificador de rutina.
-		for_threads = pragma.Num_threads // String con el numero de hilos del Parallel.
-		// Comprobar clausula default
+		routine_num = "_routine_num"     // String with goroutine number ID variable.
+		for_threads = pragma.Num_threads // String with threads number in Parallel block.
+		// Check Default clause
 		if pragma.Default == NONE {
 			def_cond, def_var := var_not_prev_declare(pragma, varGlobalList, varLocalList)
 			if def_cond {
-				panic("Error: variable " + def_var + " no declarada previamente")
+				panic("Error: Variable \"" + def_var + "\" not previously initialized.")
 			}
 		}
 
-		// VARIABLES REDUCTION
+		// REDUCTION VARIABLES
 		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varGlobalList, varLocalList)
 		numBarriers = numB
 		out <- dcls + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + "go func(_routine_num int)"
@@ -353,19 +352,19 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		tok = <-in
 		// init LBRACE
 		if tok.Token != token.LBRACE {
-			panic("Error: Falta la llave de inicio del pragma")
+			panic("Error: Missing init brace in pragma.")
 		}
-		s.Push(true) // Llave de apertura de bloque Parallel
+		s.Push(true) // Init brace in Parallel block.
 
-		//VARIABLES PRIVATE
+		// PRIVATE VARIABLES
 		privateList := declareList(pragma, varGlobalList, varLocalList)
-		fmt.Println("Variables privadas en pragma parallel:", privateList)
+		fmt.Println("Private variables in pragma Parallel:", privateList)
 
-		// Redeclaracion de variables private y reduction.
+		// Private and reduction variables redeclarations.
 		out <- " {" + "var (" + privateList + ") \n" + var_dcls
 		sync <- nil
 
-		// Tratamiento del contenido del Parallel
+		// Parallel content treatment
 		for !endParallel {
 			tok = <-in
 			switch {
@@ -396,36 +395,36 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 			}
 		}
 		in_parallel = false
-	case 1: // PRAGMA PARALLEL_FOR
+	case 1: // PARALLEL_FOR PRAGMA
 		var b bool
 		var s braceStack
-		var iteraciones string = "0" // Iteraciones del bucle paralelizado. Sólo para testeo.
-		var ini, var_indice, assign string
+		var iterations string = "0" // Parallelized loop iterations. Test only.
+		var ini, var_index, assign string
 
-		// Comprobar clausula default
+		// Check Default clause
 		if pragma.Default == NONE {
 			def_cond, def_var := var_not_prev_declare(pragma, varGlobalList, varLocalList)
 			if def_cond {
-				panic("Error: variable " + def_var + " no declarada previamente")
+				panic("Error: Variable \"" + def_var + "\" not previously initialized.")
 			}
 		}
-		// VARIABLES REDUCTION
+		// REDUCTION VARIABLES
 		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varGlobalList, varLocalList)
 		numBarriers = numB
-		out <- dcls // Cambia el pragma por la declaracion de canales
+		out <- dcls // Changes pragma by channels declaration.
 		sync <- nil
 
-		tok = <-in // Token "for"
-		fmt.Println("Variables declaradas antes del parallel for:", varGlobalList, varLocalList)
-		iteraciones, ini, var_indice, assign, tok = For_parallel_declare(tok, in, out, sync, varGlobalList, varLocalList)
-		fmt.Println("Iteraciones del bucle paralelo:", iteraciones)
+		tok = <-in // "for" token
+		fmt.Println("Variables declared before Parallel For block:", varGlobalList, varLocalList)
+		iterations, ini, var_index, assign, tok = For_parallel_declare(tok, in, out, sync, varGlobalList, varLocalList)
+		fmt.Println("Parallelized loop iterations:", iterations)
 
 		// VARIABLES PRIVATE
 		privateList := declareList(pragma, varGlobalList, varLocalList)
 		fmt.Println("Variables privadas en parallel for:", privateList)
 
 		// Lanzamiento de goroutines. Redeclaracion de variables
-		out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + var_dcls + "for " + var_indice + " " + assign + " _routine_num + " + ini + "; " + var_indice + " <" + iteraciones + "; " + var_indice + " += _numCPUs {\n"
+		out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + var_dcls + "for " + var_index + " " + assign + " _routine_num + " + ini + "; " + var_index + " <" + iterations + "; " + var_index + " += _numCPUs {\n"
 		sync <- nil
 
 		// init LBRACE

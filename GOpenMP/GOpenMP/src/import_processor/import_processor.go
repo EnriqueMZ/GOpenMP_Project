@@ -1,36 +1,35 @@
 /*
- =============================================================================================
+ =====================================================================================================
  Name        : import_processor.go
  Author      : Enrique Madridejos Zamorano
  Version     :
  Copyright   : Apache Licence Version 2.0
- Description : Módulo para tratamiento de imporst declarados en el codigo original (runtime)
- =============================================================================================
+ Description : Module that handles import declarations from the original code (especially "runtime").
+ =====================================================================================================
 */
 
 package import_processor
 
 import (
-	"fmt"
 	"go/token"
 	. "goprep"
 )
 
-// Funciones para trabajo con tokens.
+// Private token work functions.
 
-// Funcion que deja pasar un token.
+// Funtion that let a token pass.
 func passToken(tok Token, out chan string, sync chan interface{}) {
 	out <- tok.Str
 	sync <- nil
 }
 
-// Funcion que elimina un token.
+// Funtion that eliminate a token.
 func eliminateToken(out chan string, sync chan interface{}) {
 	out <- ""
 	sync <- nil
 }
 
-// Funcion que trata la declaracion de imports.
+// Function that process an import declaration.
 func Imports_declare(tok Token, in chan Token, out chan string, sync chan interface{}) {
 	var enc bool = false
 	for tok.Token == token.IMPORT {
@@ -41,7 +40,6 @@ func Imports_declare(tok Token, in chan Token, out chan string, sync chan interf
 			passToken(tok, out, sync)
 			tok = <-in
 			for tok.Token != token.RPAREN {
-				fmt.Println("Procesando token:", tok.Token)
 				switch tok.Token {
 				case token.PERIOD:
 					passToken(tok, out, sync)
@@ -75,7 +73,7 @@ func Imports_declare(tok Token, in chan Token, out chan string, sync chan interf
 							tok = <-in
 						}
 					} else {
-						panic("Token " + tok.Str + " no reconocido en declaracion import.")
+						panic("Unrecognized token \"" + tok.Str + "\" inside import declaration.")
 					}
 				case token.STRING:
 					if tok.Str == "\"runtime\"" {
@@ -90,7 +88,7 @@ func Imports_declare(tok Token, in chan Token, out chan string, sync chan interf
 						passToken(tok, out, sync)
 						tok = <-in
 					}
-				case token.COMMENT: // Ignora comentarios
+				case token.COMMENT: // Ignored comments
 					passToken(tok, out, sync)
 					tok = <-in
 				}
@@ -127,7 +125,7 @@ func Imports_declare(tok Token, in chan Token, out chan string, sync chan interf
 					tok = <-in
 				}
 			} else {
-				panic("Token " + tok.Str + " no reconocido en declaracion import.")
+				panic("Unrecognized token \"" + tok.Str + "\" inside import declaration.")
 			}
 		case token.STRING:
 			if tok.Str == "\"runtime\"" {
@@ -142,12 +140,12 @@ func Imports_declare(tok Token, in chan Token, out chan string, sync chan interf
 				passToken(tok, out, sync)
 				tok = <-in
 			}
-		case token.COMMENT: // Ignora comentarios
+		case token.COMMENT: // Ignored comments
 			passToken(tok, out, sync)
 			tok = <-in
 		}
 	}
-	if !enc { // Incluye paquete "runtime"
+	if !enc { // Include "runtime" package
 		passToken(tok, out, sync)
 		tok = <-in
 		out <- tok.Str + "\n" + "import \"runtime\"\n"

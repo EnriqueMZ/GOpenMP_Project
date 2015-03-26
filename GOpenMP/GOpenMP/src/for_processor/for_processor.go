@@ -1,12 +1,23 @@
 /*
- ==========================================================================
+ =========================================================================================================
  Name        : for_processor.go
  Author      : Enrique Madridejos Zamorano
  Version     :
  Copyright   : Apache Licence Version 2.0
- Description : Módulo para tratamiento de bucles dentro de un pragma for
- ==========================================================================
- */
+ Description : Module that handles loops inside a pragma for.
+               Loop valid structure:
+               
+               for  init-expr , var relop b , incr-expr
+               
+               Where,
+               
+               - “init-expr”: initialization of “var” variable (loop variable), by an integer expression.
+               - “relop”: valid operators <, <=, >, >=.
+               - “b”: integer expression.
+               - “incr-expr”: Increase or decrease of “var”, in a integer number,
+                  using a standard operator (++, --,  +=, -=), or by the form “var = var + incr”. 
+ ==========================================================================================================
+*/
 
 package for_processor
 
@@ -16,21 +27,21 @@ import (
 	. "var_processor"
 )
 
-// Funciones para trabajo con tokens.
+// Private token work functions.
 
-// Funcion que deja pasar un token.
+// Funtion that let a token pass.
 func passToken(tok Token, out chan string, sync chan interface{}) {
 	out <- tok.Str
 	sync <- nil
 }
 
-// Funcion que elimina un token.
+// Funtion that eliminate a token.
 func eliminateToken(out chan string, sync chan interface{}) {
 	out <- ""
 	sync <- nil
 }
 
-// Funcion que determina operadores lógico válidos
+// Function that determines valid logical operators.
 func logic_operator(tok Token) (bool, string) {
 	var err bool
 	var inc string
@@ -47,7 +58,8 @@ func logic_operator(tok Token) (bool, string) {
 	return err, inc
 }
 
-// Función para obtener el tipo de una variable marcada como reduction. Error si no se ha inicializado previamente.
+// Function to get the type of a variable declared as reduction.
+// Launch panic if variable not previously declared.
 func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) string {
 	var typ string = "error"
 	for i := range varGlobalList {
@@ -63,12 +75,12 @@ func search_typ(id string, varGlobalList []Variable, varLocalList []Variable) st
 		}
 	}
 	if typ == "error" {
-		panic("Variable " + id + " en clausula reduction no declarada previamente")
+		panic("Variable \"" + id + "\" in clause not previously declared.")
 	}
 	return typ
 }
 
-// Función que elimina una variable de una lista de variables.
+// Function that removes a variable from a private varible list.
 func eliminate_element(id string, privateList []string) []string {
 	for i := range privateList {
 		if id == privateList[i] {
@@ -80,7 +92,7 @@ func eliminate_element(id string, privateList []string) []string {
 	return privateList
 }
 
-// Función que añade una variable a una lista de variables.
+// Function that adds a variable to a private variable list.
 func add_element(id string, privateList []string) []string {
 	for i := range privateList {
 		if id == privateList[i] {
@@ -93,50 +105,50 @@ func add_element(id string, privateList []string) []string {
 	return privateList
 }
 
-// Funcion que trata la declaracion de un bucle for paralelizado.
+// Function that process a loop declaration include in a pragma for.
 func For_declare(tok Token, in chan Token, out chan string, sync chan interface{}, varGlobalList []Variable, varLocalList []Variable, routine_num string, for_threads string) Token {
 	var num_iter, ini, fin, inc, steps, var_indice, aux, assign string
 	var err bool
 	if tok.Token != token.FOR {
-		panic("Error: Debe comenzar con un for")
+		panic("Error: It must start with keyword \"for\".")
 	}
 	passToken(tok, out, sync)
 	tok = <-in
 	var_indice = tok.Str
-	// Reescribe el bucle
+	// Rewrite the loop
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token != token.DEFINE && tok.Token != token.ASSIGN {
-		panic("Error: La variable indice debe definirse implicitamente")
+		panic("Error: Loop variable must be defined implicitly.")
 	}else{
 		assign = tok.Str
 		}
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token != token.INT {
-		panic("Error: la variable " + tok.Str + " debe definirse como un entero")
+		panic("Error: Variable \"" + tok.Str + "\" must be defined as an integer.")
 	}
 	ini = tok.Str
-	// Reescribe el bucle
+	// Rewrite the loop
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token != token.SEMICOLON {
-		panic("Error: Espera un semicolon")
+		panic("Error: Wait a semicolon.")
 	}
 	eliminateToken(out, sync)
 	tok = <-in
 	aux = tok.Str
 	if aux != var_indice {
-		panic("Error: Debe emplear la misma variable en la declaracion del for")
+		panic("Error: It must use the same variable in the for declarion.")
 	}
-	// Reescribe el bucle
+	// Rewrite the loop
 	eliminateToken(out, sync)
 	tok = <-in
 	err, inc = logic_operator(tok)
 	if err {
-		panic("Operador lógico no válido")
+		panic("Invalid logical operator.")
 	}
-	// Reescribe el bucle
+	// Rewrite the loop
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token == token.INT {
@@ -145,25 +157,25 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 		if tok.Token == token.IDENT {
 			typ := search_typ(tok.Str, varGlobalList, varLocalList)
 			if typ != "int" {
-				panic("Error: la variable " + tok.Str + " debe definirse como un entero")
+				panic("Error: Variable \"" + tok.Str + "\" must be defined as an integer.")
 			} else {
 				fin = tok.Str
 			}
 		} else {
-			panic("Error: la variable " + tok.Str + " debe definirse como un entero")
+			panic("Error: Variable \"" + tok.Str + "\" must be defined as an integer.")
 		}
 	}
-	// Reescribe el bucle
+	// Rewrite the loop
 	eliminateToken(out, sync)
 	tok = <-in
 	if tok.Token != token.SEMICOLON {
-		panic("Error: Espera un semicolon")
+		panic("Error: Wait a semicolon.")
 	}
 	eliminateToken(out, sync)
 	tok = <-in
 	aux = tok.Str
 	if aux != var_indice {
-		panic("Error: Debe emplear la misma variable en la declaracion del for")
+		panic("Error: It must use the same variable in the for declarion.")
 	}
 	eliminateToken(out, sync)
 	tok = <-in
@@ -172,11 +184,11 @@ func For_declare(tok Token, in chan Token, out chan string, sync chan interface{
 		steps = "1"
 	case token.ADD_ASSIGN, token.SUB_ASSIGN:
 		if tok.Token != token.INT {
-			panic("Error: Debe definirse como un entero")
+			panic("Error: Variable \"" + tok.Str + "\" must be an integer.")
 		}
 		steps = tok.Str
 	}
-	num_iter = "(" + fin + " + " + inc + ") / " + steps // Cadena "(fin + inc) / steps"
+	num_iter = "(" + fin + " + " + inc + ") / " + steps // String "(fin + inc) / steps"
 	if for_threads == "1" {
 		out <- var_indice + assign + " " + routine_num + "; "+ var_indice + " < " + num_iter + "; " + var_indice + "++"
 		sync <- nil

@@ -4,8 +4,8 @@
  Author      : Enrique Madridejos Zamorano
  Version     :
  Copyright   : Apache Licence Version 2.0
- Description : Módulo para tratamiento de declaraciones de variables y argumentos de funciones.
- 			   NOTA IMPORTANTE: Sólo admite variables declaradas IMPLÍCITAMENTE.
+ Description : Module that handles variable declarations and function arguments from the original code.
+ 			   IMPORTANT NOTE: Supports only EXPLICITLY declared variables.
  ================================================================================================
 */
 
@@ -34,35 +34,27 @@ func (stack *braceStack) Pop() bool {
 	return i
 }
 
-type Variable struct { // Estructura para variables inicializadas
-	Ident string // Identificador
-	Type  string // Tipo
-	Ini   bool   // ¿Está inicializada?
+type Variable struct { // Initialized variables structure
+	Ident string // Identifier
+	Type  string // Type
+	Ini   bool   // ¿Is the varible inicialized with a value?
 }
 
-// Funcion para concatenar slices de Variables
-func concat(a, b []Variable) []Variable {
-	for i := range b {
-		a = append(a, b[i])
-	}
-	return a
-}
+// Private token work functions.
 
-// Funciones para trabajo con tokens.
-
-// Funcion que deja pasar un token.
+// Funtion that let a token pass.
 func passToken(tok Token, out chan string, sync chan interface{}) {
 	out <- tok.Str
 	sync <- nil
 }
 
-// Funcion que elimina un token.
+// Funtion that eliminate a token.
 func eliminateToken(out chan string, sync chan interface{}) {
 	out <- ""
 	sync <- nil
 }
 
-// Funcion que trata la declaracion de un interface.
+// Function that process an interface declaration.
 func interface_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "interface"
 	passToken(tok, out, sync)
@@ -84,7 +76,7 @@ func interface_declare(tok Token, in chan Token, out chan string, sync chan inte
 	return str
 }
 
-// Funcion que trata la declaracion de un slice.
+// Function that process a slice declaration.
 func slice_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "["
 	passToken(tok, out, sync)
@@ -103,7 +95,7 @@ func slice_declare(tok Token, in chan Token, out chan string, sync chan interfac
 	return str
 }
 
-// Funcion que trata la declaracion de un puntero.
+// Function that process a pointer declaration.
 func pointer_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "*"
 	passToken(tok, out, sync)
@@ -122,7 +114,7 @@ func pointer_declare(tok Token, in chan Token, out chan string, sync chan interf
 	return str
 }
 
-// Funcion que trata la declaracion de un map.
+// Function that process a map declaration.
 func map_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "map"
 	passToken(tok, out, sync)
@@ -144,7 +136,7 @@ func map_declare(tok Token, in chan Token, out chan string, sync chan interface{
 	return str
 }
 
-// Funcion que trata la declaracion de un struct.
+// Function that process a struct declaration.
 func struct_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "struct"
 	passToken(tok, out, sync)
@@ -163,7 +155,7 @@ func struct_declare(tok Token, in chan Token, out chan string, sync chan interfa
 	return str
 }
 
-// Funcion que trata la declaracion de una funcion como variable.
+// Function that process a function declaration as a variable.
 func func_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "func"
 	passToken(tok, out, sync)
@@ -185,15 +177,14 @@ func func_declare(tok Token, in chan Token, out chan string, sync chan interface
 	return str
 }
 
-// Funcion que trata la declaracion de un canal.
+// Function that process a channel declaration.
 func channel_declare(tok Token, in chan Token, out chan string, sync chan interface{}) string {
 	var str string = "chan"
 	passToken(tok, out, sync)
-
 	return str
 }
 
-// Funcion para asignar los campos de las variables de la lista de variables.
+// Function to map the fields of the variables in the variable list.
 func assign(identList []string, tipe string, ini bool) []Variable {
 	var varAux Variable
 	var res []Variable
@@ -206,7 +197,7 @@ func assign(identList []string, tipe string, ini bool) []Variable {
 	return res
 }
 
-// Funcion publica que concatena dos slices de Variable.
+// Function that concatenates two slices of Variable type (public).
 func Var_concat(a, b []Variable) []Variable {
 	for i := range b {
 		a = append(a, b[i])
@@ -214,7 +205,7 @@ func Var_concat(a, b []Variable) []Variable {
 	return a
 }
 
-// Funcion publica que almacena las variables de declaraciones simples.
+// Function that stores the variables from simple declarations (public). 
 func Var_simple_processor(tok Token, in chan Token, out chan string, sync chan interface{}) []Variable {
 	var listAux []Variable
 	var tipe string = ""
@@ -233,7 +224,7 @@ func Var_simple_processor(tok Token, in chan Token, out chan string, sync chan i
 			for !finIn {
 				tok = <-in
 				switch tok.Token {
-				case token.COMMA: // SEGUIR A PARTIR DE AQUI
+				case token.COMMA:
 					passToken(tok, out, sync)
 					tok = <-in
 					identList = append(identList, tok.Str)
@@ -242,29 +233,29 @@ func Var_simple_processor(tok Token, in chan Token, out chan string, sync chan i
 					tipe = tipe + tok.Str
 					passToken(tok, out, sync)
 				case token.MUL:
-					// Tratamiento de punteros
+					// Pointer declaration processing
 					tipe = pointer_declare(tok, in, out, sync)
 				case token.INTERFACE:
-					// Tratamiento declaracion interface
+					// Interface declaration processing
 					tipe = interface_declare(tok, in, out, sync)
 				case token.LBRACK:
-					// Tratamiento declaracion slice
+					// Slice declaration processing
 					tipe = slice_declare(tok, in, out, sync)
 				case token.MAP:
-					// Tratamiento declaracion map
+					// Map declaration processing
 					tipe = map_declare(tok, in, out, sync)
 				case token.STRUCT:
-					//tratamiento declaracion struct
+					// Struct declaration processing
 					tipe = struct_declare(tok, in, out, sync)
 				case token.FUNC:
-					// Tratamiento declaracion funcion
+					// Function declaration processing
 					tipe = func_declare(tok, in, out, sync)
 				case token.PERIOD:
-					// Tipos compuestos
+					// Composite types declaration processing
 					tipe = tipe + tok.Str
 					passToken(tok, out, sync)
 				case token.CHAN:
-					// Tratamiento declaracion chan
+					// Channel declaration processing
 					tipe = tipe + tok.Str + " "
 					passToken(tok, out, sync)
 				case token.ASSIGN:
@@ -272,7 +263,7 @@ func Var_simple_processor(tok Token, in chan Token, out chan string, sync chan i
 					passToken(tok, out, sync)
 					for {
 						tok = <-in
-						if tok.Token == token.SEMICOLON { // REVISAR AQUI
+						if tok.Token == token.SEMICOLON { // CHECK THIS POINT
 							passToken(tok, out, sync)
 							break
 						} else {
@@ -298,8 +289,7 @@ func Var_simple_processor(tok Token, in chan Token, out chan string, sync chan i
 	}
 	return listAux
 }
-
-// Funcion publica que almacena las variables de declaraciones multiples.
+// Function that stores the variables from multiple declarations (public). 
 func Var_multi_processor(tok Token, in chan Token, out chan string, sync chan interface{}) []Variable {
 	var listAux []Variable
 	var tipe string = ""
@@ -320,29 +310,29 @@ func Var_multi_processor(tok Token, in chan Token, out chan string, sync chan in
 			tipe = tipe + tok.Str
 			passToken(tok, out, sync)
 		case token.MUL:
-			// Tratamiento de punteros
+			// Pointer declaration processing
 			tipe = pointer_declare(tok, in, out, sync)
 		case token.INTERFACE:
-			// Tratamiento declaracion interface
+			// Interface declaration processing
 			tipe = interface_declare(tok, in, out, sync)
 		case token.LBRACK:
-			// Tratamiento declaracion slice
+			// Slice declaration processing
 			tipe = slice_declare(tok, in, out, sync)
 		case token.MAP:
-			// Tratamiento declaracion map
+			// Map declaration processing
 			tipe = map_declare(tok, in, out, sync)
 		case token.STRUCT:
-			// Tratamiento declaracion struct
+			// Struct declaration processing
 			tipe = struct_declare(tok, in, out, sync)
 		case token.FUNC:
-			// Tratamiento declaracion funcion
+			// Function declaration processing
 			tipe = func_declare(tok, in, out, sync)
 		case token.PERIOD:
-			// Tipos compuestos
+			// Composite types declaration processing
 			tipe = tipe + tok.Str
 			passToken(tok, out, sync)
 		case token.CHAN:
-			// Tratamiento declaracion chan
+			// Channel declaration processing
 			tipe = tipe + tok.Str + " "
 			passToken(tok, out, sync)
 		case token.ASSIGN:
@@ -361,7 +351,7 @@ func Var_multi_processor(tok Token, in chan Token, out chan string, sync chan in
 	return listAux
 }
 
-// Funcion publica que almacena las variables de argumentos de funcion.
+// Function that stores the arguments from functions declarations (public). 
 func Var_argument_processor(tok Token, in chan Token, out chan string, sync chan interface{}, varLocalList []Variable) []Variable {
 	var tipe string = ""
 	var variable Variable
@@ -383,29 +373,29 @@ func Var_argument_processor(tok Token, in chan Token, out chan string, sync chan
 					tipe = tipe + tok.Str
 					passToken(tok, out, sync)
 				case token.MUL:
-					// Tratamiento de punteros
+					// Pointer declaration processing
 					tipe = pointer_declare(tok, in, out, sync)
 				case token.INTERFACE:
-					// Tratamiento declaracion interface
+					// Interface declaration processing
 					tipe = interface_declare(tok, in, out, sync)
 				case token.LBRACK:
-					// Tratamiento declaracion slice
+					// Slice declaration processing
 					tipe = slice_declare(tok, in, out, sync)
 				case token.MAP:
-					// Tratamiento declaracion map
+					// Map declaration processing
 					tipe = map_declare(tok, in, out, sync)
 				case token.STRUCT:
-					//tratamiento declaracion struct
+					// Struct declaration processing
 					tipe = struct_declare(tok, in, out, sync)
 				case token.FUNC:
-					// Tratamiento declaracion funcion
+					// Function declaration processing
 					tipe = func_declare(tok, in, out, sync)
 				case token.PERIOD:
-					// Tipos compuestos
+					// Composite types declaration processing
 					tipe = tipe + tok.Str
 					passToken(tok, out, sync)
 				case token.CHAN:
-					// Tratamiento declaracion chan
+					// Channel declaration processing
 					tipe = tipe + tok.Str + " "
 					passToken(tok, out, sync)
 				case token.COMMA:
