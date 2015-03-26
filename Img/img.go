@@ -14,7 +14,7 @@ import (
 )
 
 import "runtime"
-
+//ey
 //Estrucuta de imagen
 type img struct {
 	h, w	int
