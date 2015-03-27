@@ -4,9 +4,9 @@
  Author      : Enrique Madridejos Zamorano
  Version     :
  Copyright   : Apache Licence Version 2.0
- Description : Biblioteca auxiliar para GOpenMP
+ Description : Auxiliar GOpenMP library
  ==========================================================================
- */
+*/
 
 package gomp_lib
 
