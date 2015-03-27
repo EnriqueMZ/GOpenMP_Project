@@ -549,8 +549,9 @@ func main() {
 		var routine_num string = "0" // Goroutine ID string
 		var for_threads = "1" 		 // String with for-loop thread number.
 		
+		fmt.Println("Start preprocessign...")
 		for tok := range in {
-
+			fmt.Println("Process global token: ", tok.Str) // REMOVE
 			switch { // Token treatment
 
 			case tok.Token == token.IMPORT: // Import treatment
