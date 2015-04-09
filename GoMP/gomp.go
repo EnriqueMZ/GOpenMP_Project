@@ -32,7 +32,7 @@ import (
 	"gomp_lib"
 	. "for_parallel_processor"
 	. "for_processor"
-	. "import_processor"
+	"import_processor"
 	// "runtime"
 	"strconv"
 )
@@ -585,7 +585,7 @@ func main() {
 			switch { // Token treatment
 
 			case tok.Token == token.IMPORT: // Import treatment
-				Imports_declare(tok, in, out, sync)
+				import_processor.Imports_declare(tok, in, out, sync)
 				continue
 
 			case tok.Token == token.FUNC:   // Variable _numCPUs treatment
