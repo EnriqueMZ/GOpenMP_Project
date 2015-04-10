@@ -55,10 +55,10 @@ Pragmas (compiler directives) in GOpenMP follow the same structure as in C / C +
 
 The basic structure of a pragma in GOpenMP is:
 
-    //pragma gomp tipo_pragma [clausula_pragma [[,]clausula_pragma...]]
+    //pragma gomp pragma_type [pragma_clause [[,] pragma_clause...]]
     
 Here we can see an example:
 
     //pragma gomp parallel for default(none) shared(cont) private(i, n) reduction(+:sum)
     
-
+Where "parallel for" is the type of pragma that applies in this case, and "default", "shared", "private" and "reduction" are clauses applicable to this pragma, each with its variables (or operators) associated.
