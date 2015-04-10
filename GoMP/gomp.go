@@ -1,5 +1,5 @@
 /*
- ============================================================================
+ =======================================================================================
  Name        : gomp.go
  Author      : Enrique Madridejos Zamorano
  Version     :
@@ -16,7 +16,7 @@
                limitations under the License.
                
  Description : Main GOpenMP pre-processor module
- ============================================================================
+ =======================================================================================
 */
 
 package main
@@ -314,10 +314,24 @@ func declare(ident string, varGlobalList []Variable, varLocalList []Variable) st
 	return res
 }
 
-
-// Funcion that writes the string code for private variables re-initialization.
+// Funcion that writes the string code for private variables re-initialization (var declaration).
 // WARNING: Implicitly declared variables.
-func declareList(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) string {
+func declareListUntyped(pragma Pragma) string {
+	var res string
+	if len(pragma.Private_List) == 0 {
+		res = ""
+	} else {
+		res = pragma.Private_List[0]
+		for i := 1; i < len(pragma.Private_List); i++ {
+			res = res + ", " + pragma.Private_List[i]
+		}
+	}
+	return res
+}
+
+// Funcion that writes the string code for private variables re-initialization (var declaration).
+// WARNING: Implicitly declared variables.
+func declareListSemicolon(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) string {
 	var res string
 	if len(pragma.Private_List) == 0 {
 		res = ""
@@ -329,6 +343,52 @@ func declareList(pragma Pragma, varGlobalList []Variable, varLocalList []Variabl
 	}
 	return res
 }
+
+// Funcion that writes the string code for private variables re-initialization (argument declaration).
+// WARNING: Implicitly declared variables.
+func declareListComma(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) string {
+	var res string
+	if len(pragma.Private_List) == 0 {
+		res = ""
+	} else {
+		res = declare(pragma.Private_List[0], varGlobalList, varLocalList)
+		for i := 1; i < len(pragma.Private_List); i++ {
+			res = res + ", " + declare(pragma.Private_List[i], varGlobalList, varLocalList)
+		}
+	}
+	return res
+}
+
+// Funcion that writes the string code for private variables re-initialization (argument declaration).
+// WARNING: Implicitly declared variables.
+func declareListFirstPrivate(pragma Pragma, varGlobalList []Variable, varLocalList []Variable) string {
+	var res string
+	if len(pragma.Private_List) == 0 {
+		res = ""
+	} else {
+		res = "_" + declare(pragma.Private_List[0], varGlobalList, varLocalList)
+		for i := 1; i < len(pragma.Private_List); i++ {
+			res = res + ", _" + declare(pragma.Private_List[i], varGlobalList, varLocalList)
+		}
+	}
+	return res
+}
+
+func gorutineDeclArgs(list string) string{
+	var res = "_routine_num int"
+	if list != ""{
+		res = res + ", " + list
+		}
+	return res
+	}
+
+func gorutineArgs(list string) string{
+	var res = "_i"
+	if list != ""{
+		res = res + ", " + list
+		}
+	return res
+	}
 
 // Function that rewrites the code if it is a pragma.
 func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interface{}, num_prag int, in_parallel bool, routine_num string, for_threads string, numBarriers int, varLocalList []Variable) (int, int) {
@@ -360,7 +420,11 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		// REDUCTION VARIABLES
 		dcls, sends, var_dcls, rcvs, numB := barrier_list_reduction(numBarriers, pragma.Reduction_List, varGlobalList, varLocalList)
 		numBarriers = numB
-		out <- dcls + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + "go func(_routine_num int)"
+		firstprivateList := declareListFirstPrivate(pragma, varGlobalList, varLocalList)
+		privateListUntyped := declareListUntyped(pragma)
+		declArgsList := gorutineDeclArgs(firstprivateList)
+		argsList := gorutineArgs(privateListUntyped)
+		out <- dcls + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + "go func(" + declArgsList + ")"
 		sync <- nil
 
 		tok = <-in
@@ -371,11 +435,14 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		s.Push(true) // Init brace in Parallel block.
 
 		// PRIVATE VARIABLES
-		privateList := declareList(pragma, varGlobalList, varLocalList)
-		fmt.Println("  Private variables in pragma Parallel:", privateList)
+		privateListSemicolon := declareListSemicolon(pragma, varGlobalList, varLocalList)
+		privateListComma := declareListComma(pragma, varGlobalList, varLocalList)
+		fmt.Println("  Private variables in pragma Parallel:", privateListComma)
+		fmt.Println("  Private variables in pragma Parallel:", privateListUntyped)
+		fmt.Println("  FirstPrivate variables in pragma Parallel:", firstprivateList)
 
 		// Private and reduction variables redeclarations.
-		out <- " {" + "var (" + privateList + ") \n" + var_dcls
+		out <- " {" + "var (" + privateListSemicolon + ") \n" + var_dcls
 		sync <- nil
 
 		// Parallel content treatment
@@ -390,7 +457,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 				b = s.Pop()
 				if b {
 					// End the parallel
-					out <- sends + "}(_i)\n" + "}\n" + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + rcvs + "}\n"
+					out <- sends + "}("+ argsList + ")\n" + "}\n" + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + rcvs + "}\n"
 					sync <- nil
 					endParallel = true
 				} else {
@@ -435,11 +502,19 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		fmt.Println("  Parallelized loop iterations:", iterations)
 
 		// PRIVATE VARIABLES
-		privateList := declareList(pragma, varGlobalList, varLocalList)
-		fmt.Println("  Private variables in Parallel For pragma:", privateList)
+		privateListUntyped := declareListUntyped(pragma)
+		privateListSemicolon := declareListSemicolon(pragma, varGlobalList, varLocalList)
+		privateListComma := declareListComma(pragma, varGlobalList, varLocalList)
+		firstprivateList := declareListFirstPrivate(pragma, varGlobalList, varLocalList)
+		fmt.Println("  Private variables in pragma Parallel:", privateListComma)
+		fmt.Println("  Private variables in pragma Parallel:", privateListUntyped)
+		fmt.Println("  FirstPrivate variables in pragma Parallel:", firstprivateList)
+		
+		declArgsList := gorutineDeclArgs(firstprivateList)
+		argsList := gorutineArgs(privateListUntyped)
 
 		// Goroutines start. Varibles re-declatations.
-		out <- tok.Str + "\n" + "go func(_routine_num int) {\n" + "var (" + privateList + ") \n" + var_dcls + "for " + var_index + " " + assign + " _routine_num + " + ini + "; " + var_index + " <" + iterations + "; " + var_index + " += _numCPUs {\n"
+		out <- tok.Str + "\n" + "go func(" + declArgsList + ") {\n" + "var (" + privateListSemicolon + ") \n" + var_dcls + "for " + var_index + " " + assign + " _routine_num + " + ini + "; " + var_index + " <" + iterations + "; " + var_index + " += _numCPUs {\n"
 		sync <- nil
 
 		// init LBRACE
@@ -457,7 +532,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 				b = s.Pop()
 				if b {
 					// End the parallel for
-					out <- tok.Str + "\n" + sends + "}(_i)\n" + "}\n" + "for _i := 0; _i < _numCPUs; _i++{\n" + rcvs + "}\n"
+					out <- tok.Str + "\n" + sends + "}(" + argsList + ")\n" + "}\n" + "for _i := 0; _i < _numCPUs; _i++{\n" + rcvs + "}\n"
 					sync <- nil
 					endParallelFor = true
 				} else {
@@ -504,12 +579,17 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		fmt.Println("Parallelized loop iterations:", iterations)
 
 		// PRIVATE VARIABLES
-		privateList := declareList(pragma, varGlobalList, varLocalList)
-		fmt.Println("  Private variables in For pragma:", privateList)
+		privateListUntyped := declareListUntyped(pragma)
+		privateListSemicolon := declareListSemicolon(pragma, varGlobalList, varLocalList)
+		privateListComma := declareListComma(pragma, varGlobalList, varLocalList)
+		firstprivateList := declareListFirstPrivate(pragma, varGlobalList, varLocalList)
+		fmt.Println("  Private variables in pragma Parallel:", privateListComma)
+		fmt.Println("  Private variables in pragma Parallel:", privateListUntyped)
+		fmt.Println("  FirstPrivate variables in pragma Parallel:", firstprivateList)
 
 		// Goroutines start. Varibles re-declatations.
 		//out <- tok.Str + "\n" + "var (" + privateList + ") \n" + var_dcls + "for _i := _routine_num; _i <" + iteraciones + "; _i += _numCPUs {\n"
-		out <- tok.Str + "\n" + "var (" + privateList + ") \n"
+		out <- tok.Str + "\n" + "var (" + privateListSemicolon + ") \n"
 		sync <- nil
 
 		// init LBRACE
@@ -553,7 +633,13 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 
 // MAIN PROGRAM.
 func main() {
-	_fIn,_ := os.Open(os.Args[1]) 
+	if len(os.Args) != 3 {
+		panic("Error: Invalid number of arguments")
+		}
+	_fIn, pathErrOpen := os.Open(os.Args[1])
+	if pathErrOpen != nil {
+		panic(pathErrOpen.Error())
+		}
 	p := PipeInit(_fIn)
 	//Lines(p) // Show pre-processor lines
 	Link(func(in chan Token,
@@ -847,7 +933,10 @@ func main() {
 		close(tOut)
 	})(p)
 	
-	_fOut,_ := os.Create(os.Args[2])
+	_fOut, pathErrCreate := os.Create(os.Args[2])
+	if pathErrCreate != nil {
+		panic(pathErrCreate.Error())
+		}
 	PipeEnd(p, _fOut)
 	
 	fmt.Println("  Number of variable declarations in original code: ", num_dec, "\n")

@@ -13,13 +13,13 @@ func _init_numCPUs() {
 	runtime.GOMAXPROCS(_numCPUs)
 }
 func prime_number(n int) int {
-	//var i int
-	//var j int
-	//var prime int
+	var i int
+	var j int
+	var prime int
 	var total int = 0
 	var _barrier_0_int = make(chan int)
 	for _i := 0; _i < _numCPUs; _i++ {
-		go func(_routine_num int) {
+		go func(_routine_num int, _i int, _j int, _prime int) {
 			var (
 				i	int
 				j	int
@@ -37,7 +37,7 @@ func prime_number(n int) int {
 				total = total + prime
 			}
 			_barrier_0_int <- total
-		}(_i)
+		}(_i, i, j, prime)
 	}
 	for _i := 0; _i < _numCPUs; _i++ {
 		total += <-_barrier_0_int

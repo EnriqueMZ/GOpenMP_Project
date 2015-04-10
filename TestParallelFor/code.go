@@ -35,7 +35,7 @@ func main() {
 		}
 		fmt.Println("cont =", cont)
 	}
-	
+	fmt.Println("cont =", cont)
 	fmt.Println("Fin de la region paralela")
 	fmt.Println("Valores de la variable fuera del bloque parallel:", sum1, sum2, prod)
 

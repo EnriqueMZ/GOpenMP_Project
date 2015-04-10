@@ -1,5 +1,5 @@
 /*
- ================================================================================================
+ =======================================================================================================
  Name        : for_parallel_processor.go
  Author      : Enrique Madridejos Zamorano
  Version     :
@@ -17,7 +17,7 @@
                
  Description : Module that handles variable declarations and function arguments from the original code.
  			   IMPORTANT NOTE: Supports only EXPLICITLY declared variables.
- ================================================================================================
+ =======================================================================================================
 */
 
 package var_processor
