@@ -14,7 +14,7 @@
                WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
                See the License for the specific language governing permissions and
                limitations under the License.
-               
+
  Description : Main GOpenMP pre-processor module
  =======================================================================================
 */
@@ -23,16 +23,16 @@ package main
 
 import (
 	"fmt"
+	. "for_parallel_processor"
+	. "for_processor"
 	"go/token"
+	"gomp_lib"
 	. "goprep"
+	"import_processor"
 	"os"
 	. "pragma_processor"
 	"strings"
 	. "var_processor"
-	"gomp_lib"
-	. "for_parallel_processor"
-	. "for_processor"
-	"import_processor"
 	// "runtime"
 	"strconv"
 )
@@ -374,21 +374,21 @@ func declareListFirstPrivate(pragma Pragma, varGlobalList []Variable, varLocalLi
 	return res
 }
 
-func gorutineDeclArgs(list string) string{
+func gorutineDeclArgs(list string) string {
 	var res = "_routine_num int"
-	if list != ""{
+	if list != "" {
 		res = res + ", " + list
-		}
-	return res
 	}
+	return res
+}
 
-func gorutineArgs(list string) string{
+func gorutineArgs(list string) string {
 	var res = "_i"
-	if list != ""{
+	if list != "" {
 		res = res + ", " + list
-		}
-	return res
 	}
+	return res
+}
 
 // Function that rewrites the code if it is a pragma.
 func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interface{}, num_prag int, in_parallel bool, routine_num string, for_threads string, numBarriers int, varLocalList []Variable) (int, int) {
@@ -408,7 +408,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		routine_num = "_routine_num"     // String with goroutine number ID variable.
 		for_threads = pragma.Num_threads // String with threads number in Parallel block.
 		fmt.Println("  Pragma type: PARALLEL \n")
-		
+
 		// Check Default clause
 		if pragma.Default == NONE {
 			def_cond, def_var := var_not_prev_declare(pragma, varGlobalList, varLocalList)
@@ -457,7 +457,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 				b = s.Pop()
 				if b {
 					// End the parallel
-					out <- sends + "}("+ argsList + ")\n" + "}\n" + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + rcvs + "}\n"
+					out <- sends + "}(" + argsList + ")\n" + "}\n" + "for _i := 0; _i < " + pragma.Num_threads + "; _i++{\n" + rcvs + "}\n"
 					sync <- nil
 					endParallel = true
 				} else {
@@ -509,7 +509,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		fmt.Println("  Private variables in pragma Parallel:", privateListComma)
 		fmt.Println("  Private variables in pragma Parallel:", privateListUntyped)
 		fmt.Println("  FirstPrivate variables in pragma Parallel:", firstprivateList)
-		
+
 		declArgsList := gorutineDeclArgs(firstprivateList)
 		argsList := gorutineArgs(privateListUntyped)
 
@@ -576,7 +576,7 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 		tok = <-in // "for" token
 		fmt.Println("  Variables declared before For block:", varGlobalList, varLocalList)
 		tok = For_declare(tok, in, out, sync, varGlobalList, varLocalList, routine_num, for_threads)
-		fmt.Println("Parallelized loop iterations:", iterations)
+		fmt.Println("  Parallelized loop iterations:", iterations)
 
 		// PRIVATE VARIABLES
 		privateListUntyped := declareListUntyped(pragma)
@@ -635,23 +635,24 @@ func pragma_rewrite(tok Token, in chan Token, out chan string, sync chan interfa
 func main() {
 	if len(os.Args) != 3 {
 		panic("Error: Invalid number of arguments")
-		}
+	}
 	_fIn, pathErrOpen := os.Open(os.Args[1])
 	if pathErrOpen != nil {
 		panic(pathErrOpen.Error())
-		}
+	}
 	p := PipeInit(_fIn)
 	//Lines(p) // Show pre-processor lines
 	Link(func(in chan Token,
 		tOut chan Token,
 		out chan string,
 		sync chan interface{}) {
+		var numImprt int = 0         // Initializes import declarations counter.
 		var numFunc int = 0          // Initializes function counter of the original code.
 		var numBarriers int = 0      // Inicializes barrier counter.
 		var in_parallel bool = false // Inside parallel block?
 		var routine_num string = "0" // Goroutine ID string
-		var for_threads = "1" 		 // String with for-loop thread number.
-		
+		var for_threads = "1"        // String with for-loop thread number.
+
 		fmt.Print("\n")
 		fmt.Println("  ===============================================")
 		fmt.Print("\n")
@@ -665,24 +666,32 @@ func main() {
 		fmt.Print("\n")
 		fmt.Println("  Start preprocessign...")
 		fmt.Print("\n")
-		
+
 		for tok := range in {
-			
+
 			switch { // Token treatment
 
 			case tok.Token == token.IMPORT: // Import treatment
 				import_processor.Imports_declare(tok, in, out, sync)
+				numImprt++
 				continue
 
-			case tok.Token == token.FUNC:   // Variable _numCPUs treatment
+			case tok.Token == token.FUNC: // Variable _numCPUs treatment
 				var b bool
 				var s braceStack
 				var varLocalList []Variable // Local variable list of a function.
 				if numFunc == 0 {           // First function declare in the original code.
 					numFunc++
-					out <- "var _numCPUs = runtime.NumCPU()\n" + "func _init_numCPUs(){\n" + "runtime.GOMAXPROCS(_numCPUs)\n" + "}\n" + tok.Str
-					sync <- nil
-					tok = <-in
+					if numImprt == 0 && num_dec == 0 { // No imports declare in code.
+						numImprt++
+						out <- "import \"runtime\"\n" + "var _numCPUs = runtime.NumCPU()\n" + "func _init_numCPUs(){\n" + "runtime.GOMAXPROCS(_numCPUs)\n" + "}\n" + tok.Str
+						sync <- nil
+						tok = <-in
+					} else {
+						out <- "var _numCPUs = runtime.NumCPU()\n" + "func _init_numCPUs(){\n" + "runtime.GOMAXPROCS(_numCPUs)\n" + "}\n" + tok.Str
+						sync <- nil
+						tok = <-in
+					}
 					fmt.Println("  Now entering the first function:", tok.Str)
 					if tok.Str == "main" { // First function is the "main" funtion.
 						for tok.Token != token.LPAREN {
@@ -708,7 +717,7 @@ func main() {
 							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Variable declaration treatment
-								num_dec++ 		   // Variable declaration counter (test only)
+								num_dec++ // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
 								fmt.Println("  Local variable:", tok.Str)
@@ -762,7 +771,7 @@ func main() {
 							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Variable declaration treatment
-								num_dec++ 		   // Variable declaration counter (test only)
+								num_dec++ // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
 								fmt.Println("  Local variable:", tok.Str)
@@ -823,7 +832,7 @@ func main() {
 							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Variable declaration treatment
-								num_dec++ 		   // Variable declaration counter (test only)
+								num_dec++ // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
 								fmt.Println("  Local variable:", tok.Str)
@@ -877,7 +886,7 @@ func main() {
 							case isPragma(tok): // "pragma gomp" recognizer
 								num_prag, numBarriers = pragma_rewrite(tok, in, out, sync, num_prag, in_parallel, routine_num, for_threads, numBarriers, varLocalList)
 							case tok.Str == "var": // Variable declaration treatment
-								num_dec++ 		   // Variable declaration counter (test only)
+								num_dec++ // Variable declaration counter (test only)
 								passToken(tok, out, sync)
 								tok = <-in
 								fmt.Println("  Local variable:", tok.Str)
@@ -912,9 +921,17 @@ func main() {
 					}
 				}
 			case tok.Str == "var": // Variable declaration treatment
-				num_dec++ 		   // Variable declaration counter (test only)
-				passToken(tok, out, sync)
-				tok = <-in
+				num_dec++ // Variable declaration counter (test only)
+				if numImprt == 0 {
+					numImprt++
+					out <- "import \"runtime\"\n" + tok.Str
+					sync <- nil
+					tok = <-in
+				} else {
+					passToken(tok, out, sync)
+					tok = <-in
+				}
+
 				fmt.Println("  Global variable:", tok.Str)
 				if tok.Token == token.LPAREN {
 					// Simple declaration
@@ -932,13 +949,13 @@ func main() {
 		}
 		close(tOut)
 	})(p)
-	
+
 	_fOut, pathErrCreate := os.Create(os.Args[2])
 	if pathErrCreate != nil {
 		panic(pathErrCreate.Error())
-		}
+	}
 	PipeEnd(p, _fOut)
-	
+
 	fmt.Println("  Number of variable declarations in original code: ", num_dec, "\n")
 	fmt.Println("  Variable declared list in original code: ", varGlobalList, "\n")
 	fmt.Println("  Preprocessing finished. \n")
