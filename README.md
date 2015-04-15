@@ -62,3 +62,26 @@ Here we can see an example:
     //pragma gomp parallel for default(none) shared(cont) private(i, n) reduction(+:sum)
     
 Where "parallel for" is the type of pragma that applies in this case, and "default", "shared", "private" and "reduction" are clauses applicable to this pragma, each with its variables (or operators) associated.
+
+Pragmas and Clauses
+-------------------
+
+In its latest version , the preprocessor supports the following pragmas :
+
+  * `Parallel`
+  * `For`
+  * `Parallel for`
+  
+Additionally , the preprocessor supports "nesting": parallel regions within others; or pragma "for" into pragma "parallel" (It behaves in a similar way if we use the pragma "parallel for ").
+
+It also recognised the following clauses:
+
+  * `Num_threads` (Number of threads in parallel region).
+  * `Default` (variable declaration mode in pragmas).
+  * `Shared` (variables marked as shared).
+  * `Private` (variables marked as private, default initialized).
+  * `Firstprivate` (variables marked as private, initialized with the value they had in the main thread).
+  * `Reduction` (reduction operator and variables).
+  * `If` (parallel clause condition).
+  
+Although " pragma_processor " is capable of recognizing more clauses , are not yet fully operational.
