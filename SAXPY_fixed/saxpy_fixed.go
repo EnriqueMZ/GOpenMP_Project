@@ -1,3 +1,11 @@
+/*
+==================================================================
+ SAXPY: Ejecución secuencial
+==================================================================
+*/
+
+
+
 package main
 
 import (
@@ -33,8 +41,8 @@ func main() {
         return
     }
     
-	var n int = 300000000
-	var a float64 = 2
+	var n int = 300000000 	// Tamaño de los vectores 
+	var a float64 = 2		// Factor de multiplicacion
 	
 	x, y := SAXPY_Init.Saxpy_init(n)
 	

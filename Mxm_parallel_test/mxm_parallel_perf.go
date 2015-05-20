@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"gomp_lib"
+	"time"
 	"math"
 )
 
@@ -14,30 +14,21 @@ func _init_numCPUs() {
 	runtime.GOMAXPROCS(_numCPUs)
 }
 func main() {
+	init := time.Now()
 	_init_numCPUs()
-	var a [500][500]float64
+	var a [1000][1000]float64
 	var angle float64
-	var b [500][500]float64
-	var c [500][500]float64
+	var b [1000][1000]float64
+	var c [1000][1000]float64
 	var i int
 	var j int
 	var k int
-	var n int = 500
+	var n int = 1000
 	var pi float64 = 3.141592653589793
 	var s float64
-	var thread_num int
-	var wtime float64
-	fmt.Printf("\n")
-	fmt.Printf("MXM_OPENMP:\n")
-	fmt.Printf("  C/OpenMP version\n")
-	fmt.Printf("  Compute matrix product C = A * B.\n")
-	thread_num = gomp_lib.Gomp_get_num_routines()
-	fmt.Printf("\n")
-	fmt.Printf("  The number of processors available = %d\n", gomp_lib.Gomp_get_num_procs())
-	fmt.Printf("  The number of threads available    = %d\n", thread_num)
-	fmt.Printf("  The matrix order N                 = %d\n", n)
 	s = 1.0 / math.Sqrt(float64(n))
-	wtime = gomp_lib.Gomp_get_wtime()
+	
+	init_p := time.Now()
 	var _barrier_0_bool = make(chan bool)
 	for _i := 0; _i < _numCPUs; _i++ {
 		go func(_routine_num int, _angle float64, _i int, _j int, _k int) {
@@ -75,12 +66,7 @@ func main() {
 	for _i := 0; _i < _numCPUs; _i++ {
 		<-_barrier_0_bool
 	}
-
-	wtime = gomp_lib.Gomp_get_wtime() - wtime
-	fmt.Printf("  Elapsed seconds = %g\n", wtime)
-	fmt.Printf("  C(100,100)  = %g\n", c[99][99])
-	fmt.Printf("\n")
-	fmt.Printf("MXM_OPENMP:\n")
-	fmt.Printf("  Normal end of execution.\n")
-	fmt.Printf("\n")
+	fin_p := time.Since(init_p).Seconds()
+	fin := time.Since(init).Seconds()
+	fmt.Println(_numCPUs, ",", fin_p, ",", fin)
 }

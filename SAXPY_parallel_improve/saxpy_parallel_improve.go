@@ -1,3 +1,9 @@
+/*
+==================================================================
+ SAXPY: Ejecución paralela mediante bloques de tamaño fijo
+==================================================================
+*/
+
 package main
 
 import (
@@ -41,8 +47,8 @@ func main() {
     }
     
 	_init_numCPUs()
-	var n int = 300000000
-	var a float64 = 2
+	var n int = 300000000 	// Tamaño de los vectores
+	var a float64 = 2		// Factor de multiplicacion
 	x, y := SAXPY_Init.Saxpy_init(n)
 	
 	init := time.Now()
@@ -50,7 +56,7 @@ func main() {
 	for _i := 0; _i < _numCPUs; _i++ {
 		go func(_routine_num int) {
 			var ()
-			for i := _routine_num * (n / _numCPUs); i < (_routine_num+1)*(n/_numCPUs); i++ {
+			for i := _routine_num * (n / _numCPUs); i < (_routine_num+1)*(n/_numCPUs); i++ { // Modo de paralelización.
 				y[i] = a*x[i] + y[i]
 			}
 			_barrier_1_bool <- true
