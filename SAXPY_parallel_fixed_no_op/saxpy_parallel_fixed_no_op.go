@@ -1,7 +1,7 @@
 /*
-==================================================================
- SAXPY: Ejecución paralela mediante distribucion modular
-==================================================================
+==========================================================================
+ SAXPY: Ejecución paralela mediante distribucion modular, sin operaciones
+==========================================================================
 */
 
 package main
@@ -16,7 +16,7 @@ import (
     "time"
     )
 
-var _numCPUs = runtime.NumCPU()
+var _numCPUs = runtime.NumCPU() - 7
 
 func _init_numCPUs() {
 	runtime.GOMAXPROCS(_numCPUs)
@@ -45,7 +45,7 @@ func main() {
 	for _i := 0; _i < _numCPUs; _i++ {
 		go func(_routine_num int) {
 			var ()
-			for i := _routine_num + 0; i < (n+0)/1; i += _numCPUs { // Modo de paralelización.
+			for i := _routine_num; i < n; i += _numCPUs { // Modo de paralelización.
 				y[i] = a*x[i] + y[i]
 			}
 			_barrier_1_bool <- true

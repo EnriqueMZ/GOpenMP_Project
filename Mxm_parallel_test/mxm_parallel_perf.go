@@ -8,7 +8,7 @@ import (
 
 import "runtime"
 
-var _numCPUs = runtime.NumCPU()
+var _numCPUs = runtime.NumCPU() - 3
 
 func _init_numCPUs() {
 	runtime.GOMAXPROCS(_numCPUs)

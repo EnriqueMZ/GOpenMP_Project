@@ -42,7 +42,7 @@ func main() {
     }
     
 	var n int = 300000000 	// Tamaño de los vectores 
-	var a float64 = 2		// Factor de multiplicacion
+	var a float32 = 2		// Factor de multiplicacion
 	
 	x, y := SAXPY_Init.Saxpy_init(n)
 	

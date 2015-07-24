@@ -3,7 +3,7 @@ package SAXPY_Bench
 func Saxpy_serial() {
 	
 	var n int = 300000000
-	var a float64 = 2
+	var a float32 = 2
 	x, y := Saxpy_init(n)
 	
 	//pragma gomp parallel for

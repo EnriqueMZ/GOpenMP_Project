@@ -26,6 +26,7 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var memprofile = flag.String("memprofile", "", "write memory profile to this file")
 
 func main() {
+	init := time.Now()
 	flag.Parse()
     if *cpuprofile != "" {
         f, err := os.Create(*cpuprofile)
@@ -48,15 +49,15 @@ func main() {
     
 	_init_numCPUs()
 	var n int = 300000000 	// Tamaño de los vectores
-	var a float64 = 2		// Factor de multiplicacion
+	var a float32 = 2		// Factor de multiplicacion
 	x, y := SAXPY_Init.Saxpy_init(n)
 	
-	init := time.Now()
+	init_p := time.Now()
 	var _barrier_1_bool = make(chan bool)
 	for _i := 0; _i < _numCPUs; _i++ {
 		go func(_routine_num int) {
 			var ()
-			for i := _routine_num * (n / _numCPUs); i < (_routine_num+1)*(n/_numCPUs); i++ { // Modo de paralelización.
+			for i := _routine_num * (n / _numCPUs); i < (_routine_num + 1) * (n / _numCPUs); i++ { // Modo de paralelización.
 				y[i] = a*x[i] + y[i]
 			}
 			_barrier_1_bool <- true
@@ -65,7 +66,8 @@ func main() {
 	for _i := 0; _i < _numCPUs; _i++ {
 		<-_barrier_1_bool
 	}
-	fin := time.Since(init)
-	fmt.Println("Time: ", fin)
+	fin_p := time.Since(init_p).Seconds()
+	fin := time.Since(init).Seconds()
+	fmt.Println(_numCPUs, ",", fin_p, ",", fin)
 
 }

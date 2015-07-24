@@ -19,16 +19,16 @@ func main() {
 	_init_numCPUs()
 	var n int
 	n, _ = strconv.Atoi(os.Args[1])
-	var a float64 = 2
-	x := make([]float64, n)
-	y := make([]float64, n)
+	var a float32 = 2
+	x := make([]float32, n)
+	y := make([]float32, n)
 	var _barrier_0_bool = make(chan bool)
 	for _i := 0; _i < _numCPUs; _i++ {
 		go func(_routine_num int) {
 			var ()
 			for i := _routine_num + 0; i < (n+0)/1; i += _numCPUs {
-				x[i] = float64(rand.Int())
-				y[i] = float64(rand.Int())
+				x[i] = float32(rand.Int())
+				y[i] = float32(rand.Int())
 			}
 			_barrier_0_bool <- true
 		}(_i)
